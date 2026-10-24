@@ -115,8 +115,3 @@ export const api = {
     );
   },
 };
-
-/** Llamada cruda para el panel de auditoría: no parsea, devuelve el JSON tal cual. */
-export async function rawRequest(req: TransportRequest) {
-  return transport(req);
-}

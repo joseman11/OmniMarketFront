@@ -87,16 +87,3 @@ export function KanbanSkeleton() {
     </div>
   );
 }
-
-export function AuditSkeleton() {
-  return (
-    <div className="mx-auto max-w-6xl" aria-busy="true" aria-label="Cargando auditoría">
-      <HeaderSkeleton />
-      <div className="grid gap-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-56 rounded-2xl" />
-        ))}
-      </div>
-    </div>
-  );
-}

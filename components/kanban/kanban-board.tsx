@@ -18,7 +18,7 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
-import { FlaskConical, Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
@@ -32,7 +32,6 @@ import { CardFace } from "@/components/kanban/kanban-card";
 import { KanbanColumn } from "@/components/kanban/kanban-column";
 import { Button } from "@/components/ui/button";
 import { ApiError, api } from "@/lib/api/client";
-import { USE_MOCKS } from "@/lib/api/config";
 import { ORDER_STATUSES, type CreateOrderInput, type KanbanCard, type OrderStatus } from "@/lib/api/schemas";
 import { useKanbanBoard } from "@/lib/hooks/use-api";
 import {
@@ -59,39 +58,6 @@ const collisionDetection: CollisionDetection = (args) => {
 type Origin = { status: OrderStatus; index: number; version: number; snapshot: BoardState };
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Error desconocido");
-
-function MockFailureToggle() {
-  const [on, setOn] = useState(false);
-  useEffect(() => {
-    void import("@/lib/api/mock/server").then((m) => setOn(m.getMockControls().failMutations));
-  }, []);
-  const toggle = async () => {
-    const m = await import("@/lib/api/mock/server");
-    const next = !on;
-    m.setMockControls({ failMutations: next });
-    setOn(next);
-    toast.info(next ? "Modo fallo activado" : "Modo fallo desactivado", {
-      description: next
-        ? "Las próximas mutaciones responderán HTTP 500 para que veas el rollback."
-        : "Las mutaciones vuelven a guardarse normalmente.",
-    });
-  };
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-pressed={on}
-      data-testid="mock-fail-toggle"
-      className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs transition",
-        on ? "border-danger/40 bg-danger/10 text-danger" : "border-white/10 text-white/50 hover:text-white",
-      )}
-      title="Sólo modo mock: fuerza errores 500 en las mutaciones"
-    >
-      <FlaskConical className="size-3.5" /> Simular fallo {on ? "ON" : "OFF"}
-    </button>
-  );
-}
 
 export function KanbanBoard() {
   const { data, error, mutate, isValidating } = useKanbanBoard();
@@ -352,11 +318,9 @@ export function KanbanBoard() {
     <div className="mx-auto max-w-[1600px]">
       <PageHeader
         title="Kanban"
-        accent="de órdenes"
         description="Arrastra para cambiar el estado o reordenar. Usa espacio + flechas para moverlas con el teclado."
         actions={
           <>
-            {USE_MOCKS && <MockFailureToggle />}
             <Button
               variant="outline"
               size="sm"

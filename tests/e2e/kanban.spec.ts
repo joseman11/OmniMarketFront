@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { AUTH_STATE, dragTo, resetData } from "./helpers";
+import { AUTH_STATE, dragTo, resetData, setMockFailure } from "./helpers";
 
 test.use({ storageState: AUTH_STATE });
 
@@ -35,12 +35,12 @@ test.describe("Kanban", () => {
   });
 
   test("si el servidor falla, el movimiento se revierte", async ({ page }) => {
-    await page.getByTestId("mock-fail-toggle").click();
+    await setMockFailure(page, true);
     const card = page.getByTestId("kanban-card-OM-1042");
     await dragTo(page, card, page.getByTestId("kanban-column-DELIVERED"));
     await expect(page.getByText(/No se pudo mover OM-1042/)).toBeVisible();
     await expect(page.getByTestId("kanban-column-PENDING").getByTestId("kanban-card-OM-1042")).toBeVisible();
-    await page.getByTestId("mock-fail-toggle").click();
+    await setMockFailure(page, false);
   });
 
   test("crear una orden valida con Zod y la agrega al tablero", async ({ page }) => {

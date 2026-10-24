@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LogOut, Plus, RotateCcw } from "lucide-react";
+import { LogOut, Plus } from "lucide-react";
 import { useEffect, useTransition } from "react";
 import { signOutAction } from "@/app/dashboard/actions";
 import {
@@ -64,9 +64,6 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           <CommandItem value="nueva orden crear" onSelect={() => go("/dashboard/kanban?new=1")}>
             <Plus className="size-4" /> Nueva orden
             <CommandShortcut>N</CommandShortcut>
-          </CommandItem>
-          <CommandItem value="probar endpoints auditoria reset" onSelect={() => go("/dashboard/audit")}>
-            <RotateCcw className="size-4" /> Probar endpoints de auditoría
           </CommandItem>
           <CommandItem
             value="cerrar sesion salir"
