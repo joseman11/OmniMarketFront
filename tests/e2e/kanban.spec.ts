@@ -22,6 +22,18 @@ test.describe("Kanban", () => {
     await expect(page.getByTestId("kanban-count-SHIPPED")).toHaveText("7");
   });
 
+  test("se puede mover una orden sólo con el teclado (espacio + flechas)", async ({ page }) => {
+    const card = page.getByTestId("kanban-card-OM-1044");
+    await card.focus();
+    await page.keyboard.press("Space");
+    await page.waitForTimeout(150);
+    await page.keyboard.press("ArrowRight");
+    await page.waitForTimeout(250);
+    await page.keyboard.press("Space");
+    await expect(page.getByText(/OM-1044 → Procesando/)).toBeVisible();
+    await expect(page.getByTestId("kanban-column-PROCESSING").getByTestId("kanban-card-OM-1044")).toBeVisible();
+  });
+
   test("si el servidor falla, el movimiento se revierte", async ({ page }) => {
     await page.getByTestId("mock-fail-toggle").click();
     const card = page.getByTestId("kanban-card-OM-1042");

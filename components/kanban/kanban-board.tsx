@@ -20,6 +20,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
 import { FlaskConical, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/dashboard/panel";
 import { KanbanBoardSkeleton } from "@/components/dashboard/skeletons";
@@ -104,6 +105,8 @@ export function KanbanBoard() {
   const originRef = useRef<Origin | null>(null);
 
   const [activeId, setActiveId] = useState<string | null>(null);
+  /** Punto de agarre dentro de la tarjeta (para que la inclinación no lo desplace). */
+  const [grabOrigin, setGrabOrigin] = useState<{ x: string; y: string }>({ x: "50%", y: "50%" });
   const [shakingId, setShakingId] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -172,12 +175,21 @@ export function KanbanBoard() {
 
   /* ─────────────── Drag & Drop ─────────────── */
 
-  const onDragStart = ({ active }: DragStartEvent) => {
+  const onDragStart = ({ active, activatorEvent }: DragStartEvent) => {
     const b = boardRef.current;
     const id = String(active.id);
     const loc = b && locate(b, id);
     if (!b || !loc) return;
     originRef.current = { ...loc, version: b[loc.status][loc.index]!.version, snapshot: b };
+    // active.rect aún no está medido en onDragStart: se mide el nodo de la tarjeta agarrada.
+    const ev = activatorEvent as PointerEvent | MouseEvent | KeyboardEvent;
+    const node = ev.target instanceof Element ? ev.target.closest("[data-version]") : null;
+    const rect = node?.getBoundingClientRect();
+    setGrabOrigin(
+      rect && "clientX" in ev
+        ? { x: `${ev.clientX - rect.left}px`, y: `${ev.clientY - rect.top}px` }
+        : { x: "50%", y: "50%" },
+    );
     setActiveId(id);
   };
 
@@ -404,13 +416,25 @@ export function KanbanBoard() {
                 />
               ))}
             </div>
-            <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
-              {activeCard ? (
-                <motion.div initial={{ rotate: 0, scale: 1 }} animate={{ rotate: 3, scale: 1.04 }} className="cursor-grabbing">
-                  <CardFace card={activeCard} selected={selected.has(activeCard.id)} overlay />
-                </motion.div>
-              ) : null}
-            </DragOverlay>
+            {/* Portal a <body>: la transición de página (template.tsx) deja transform/filter
+                en un ancestro, que se vuelve el containing block del overlay (position: fixed)
+                y lo desplazaba respecto al cursor. */}
+            {typeof document !== "undefined" &&
+              createPortal(
+                <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
+                  {activeCard ? (
+                    <motion.div
+                      initial={{ rotate: 0, scale: 1 }}
+                      animate={{ rotate: 3, scale: 1.04 }}
+                      style={{ originX: grabOrigin.x, originY: grabOrigin.y }}
+                      className="cursor-grabbing"
+                    >
+                      <CardFace card={activeCard} selected={selected.has(activeCard.id)} overlay />
+                    </motion.div>
+                  ) : null}
+                </DragOverlay>,
+                document.body,
+              )}
           </DndContext>
         </>
       )}
