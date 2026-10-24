@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { motion } from "motion/react";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
-import { useEffect, useRef } from "react";
-import { useFormStatus } from "react-dom";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { signInWithGitHub, signInWithGoogle } from "@/app/login/actions";
 import { Logo } from "@/components/brand/logo";
 import { GitHubIcon, GoogleIcon } from "@/components/brand/provider-icons";
 import { BackgroundBeams } from "@/components/ui/background-beams";
@@ -42,39 +40,59 @@ const FALLBACK_ERROR = {
   description: "Ocurrió un error inesperado. Intenta de nuevo.",
 };
 
-function ProviderButton({
+/**
+ * Formulario GET nativo hacia el proxy /api/auth/:provider. El navegador hace una navegación completa
+ * (backend → proveedor OAuth → callback). No usar server actions + redirect(): Next intentaría
+ * renderizar como RSC una respuesta de otro origen y acabaría en el error boundary.
+ */
+function ProviderForm({
   provider,
   testId,
+  returnTo,
   children,
 }: {
   provider: "google" | "github";
   testId: string;
+  returnTo: string;
   children: React.ReactNode;
 }) {
-  const { pending } = useFormStatus();
+  const [pending, setPending] = useState(false);
+
+  // Al volver con el botón "atrás" (bfcache) la página se restaura tal cual: reactivamos el botón.
+  useEffect(() => {
+    const onShow = (event: PageTransitionEvent) => {
+      if (event.persisted) setPending(false);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
+
   return (
-    <MovingBorderButton
-      type="submit"
-      data-testid={testId}
-      aria-label={provider === "google" ? "Continuar con Google" : "Continuar con GitHub"}
-      disabled={pending}
-      borderRadius="1rem"
-      duration={provider === "google" ? 3400 : 4200}
-      containerClassName="h-14 w-full disabled:cursor-wait"
-      borderClassName={
-        provider === "google"
-          ? "bg-[radial-gradient(#7c5cff_40%,transparent_60%)]"
-          : "bg-[radial-gradient(#ff9a5c_40%,transparent_60%)]"
-      }
-      className="gap-3 border-white/10 bg-[#0d0d13]/90 text-[15px] font-medium text-white transition-colors hover:bg-[#14141c]"
-    >
-      {children}
-      {pending && <span className="sr-only">Redirigiendo…</span>}
-    </MovingBorderButton>
+    <form action={`/api/auth/${provider}`} method="get" onSubmit={() => setPending(true)}>
+      <input type="hidden" name="returnTo" value={returnTo} />
+      <MovingBorderButton
+        type="submit"
+        data-testid={testId}
+        aria-label={provider === "google" ? "Continuar con Google" : "Continuar con GitHub"}
+        disabled={pending}
+        borderRadius="1rem"
+        duration={provider === "google" ? 3400 : 4200}
+        containerClassName="h-14 w-full disabled:cursor-wait"
+        borderClassName={
+          provider === "google"
+            ? "bg-[radial-gradient(#7c5cff_40%,transparent_60%)]"
+            : "bg-[radial-gradient(#ff9a5c_40%,transparent_60%)]"
+        }
+        className="gap-3 border-white/10 bg-[#0d0d13]/90 text-[15px] font-medium text-white transition-colors hover:bg-[#14141c]"
+      >
+        {children}
+        {pending && <span className="sr-only">Redirigiendo…</span>}
+      </MovingBorderButton>
+    </form>
   );
 }
 
-export function LoginPanel({ error, callbackUrl }: { error?: string; callbackUrl?: string }) {
+export function LoginPanel({ error, callbackUrl }: { error?: string; callbackUrl: string }) {
   const reduced = usePrefersReducedMotion();
   const shown = useRef<string | null>(null);
 
@@ -84,8 +102,6 @@ export function LoginPanel({ error, callbackUrl }: { error?: string; callbackUrl
     const e = AUTH_ERRORS[error] ?? FALLBACK_ERROR;
     toast.error(e.title, { description: e.description, id: `auth-${error}` });
   }, [error]);
-
-  const cb = callbackUrl ?? "/dashboard";
 
   return (
     <main className="relative flex min-h-[100svh] items-center justify-center overflow-hidden bg-ink px-4 py-16">
@@ -118,18 +134,12 @@ export function LoginPanel({ error, callbackUrl }: { error?: string; callbackUrl
         </p>
 
         <div className="mt-8 flex flex-col gap-4">
-          <form action={signInWithGoogle}>
-            <input type="hidden" name="callbackUrl" value={cb} />
-            <ProviderButton provider="google" testId="login-google">
-              <GoogleIcon className="size-5" /> Continuar con Google
-            </ProviderButton>
-          </form>
-          <form action={signInWithGitHub}>
-            <input type="hidden" name="callbackUrl" value={cb} />
-            <ProviderButton provider="github" testId="login-github">
-              <GitHubIcon className="size-5" /> Continuar con GitHub
-            </ProviderButton>
-          </form>
+          <ProviderForm provider="google" testId="login-google" returnTo={callbackUrl}>
+            <GoogleIcon className="size-5" /> Continuar con Google
+          </ProviderForm>
+          <ProviderForm provider="github" testId="login-github" returnTo={callbackUrl}>
+            <GitHubIcon className="size-5" /> Continuar con GitHub
+          </ProviderForm>
         </div>
 
         <p className="mt-8 flex items-center justify-center gap-2 text-center text-xs text-white/40">

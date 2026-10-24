@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LoginPanel } from "@/components/auth/login-panel";
+import { safeCallbackPath } from "@/lib/safe-redirect";
 
 export const metadata: Metadata = { title: "Iniciar sesión" };
 
@@ -10,5 +11,5 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; callbackUrl?: string }>;
 }) {
   const { error, callbackUrl } = await searchParams;
-  return <LoginPanel error={error} callbackUrl={callbackUrl} />;
+  return <LoginPanel error={error} callbackUrl={safeCallbackPath(callbackUrl)} />;
 }

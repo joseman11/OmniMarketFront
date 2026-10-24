@@ -3,6 +3,7 @@
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
+import { reportClientError } from "@/lib/report-client-error";
 
 export function ErrorView({
   error,
@@ -14,7 +15,7 @@ export function ErrorView({
   homeHref?: string;
 }) {
   useEffect(() => {
-    console.error(error);
+    reportClientError(error);
   }, [error]);
 
   return (
@@ -29,6 +30,15 @@ export function ErrorView({
         Ocurrió un error inesperado al mostrar esta sección. Puedes reintentar sin perder tu sesión.
       </p>
       {error.digest && <p className="mt-2 font-mono text-[11px] text-white/30">ref: {error.digest}</p>}
+      {(error.message || error.digest) && (
+        <details className="mt-4 w-full max-w-md text-left">
+          <summary className="cursor-pointer text-center text-xs text-white/40 hover:text-white/60">Detalles técnicos</summary>
+          <pre className="mt-2 max-h-48 overflow-auto rounded-lg border border-white/10 bg-black/40 p-3 font-mono text-[11px] whitespace-pre-wrap break-words text-white/60">
+            {error.name}: {error.message || "(sin mensaje)"}
+            {error.digest ? `\ndigest: ${error.digest}` : ""}
+          </pre>
+        </details>
+      )}
       <div className="mt-8 flex gap-3">
         <button
           type="button"
