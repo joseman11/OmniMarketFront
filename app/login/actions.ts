@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { signIn } from "@/auth";
+import { safeCallbackPath } from "@/lib/safe-redirect";
 
 type Provider = "google" | "github";
 
@@ -10,18 +11,13 @@ const ENV_KEYS: Record<Provider, [string, string]> = {
   github: ["AUTH_GITHUB_ID", "AUTH_GITHUB_SECRET"],
 };
 
-/** Sólo rutas internas: evita open-redirects vía ?callbackUrl=. */
-function safeCallback(raw: FormDataEntryValue | null): string {
-  const value = typeof raw === "string" ? raw : "";
-  return value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
-}
 
 async function start(provider: Provider, formData: FormData) {
   const [id, secret] = ENV_KEYS[provider];
   if (!process.env[id] || !process.env[secret] || !process.env.AUTH_SECRET) {
     redirect("/login?error=Configuration");
   }
-  await signIn(provider, { redirectTo: safeCallback(formData.get("callbackUrl")) });
+  await signIn(provider, { redirectTo: safeCallbackPath(formData.get("callbackUrl")) });
 }
 
 export async function signInWithGoogle(formData: FormData) {

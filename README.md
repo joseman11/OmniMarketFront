@@ -19,6 +19,7 @@ npm run dev
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Vitest (unitarias: formateadores, finanzas, Decimal, schemas Zod, agregaciones, Kanban) |
 | `npm run test:e2e` | Playwright (auth, crear orden, DnD + persistencia, rollback, bulk, 409) |
+| `npm run test:cypress` | Cypress (levanta el dev server en :3100 y corre `cypress run`); `npm run cypress` lo abre en modo interactivo |
 
 ## Rutas
 
