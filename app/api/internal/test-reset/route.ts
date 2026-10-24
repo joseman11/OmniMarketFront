@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseBackendSession } from "@/lib/server/session-schema";
 
 const backendUrl = (process.env.OMNIMARKET_API_URL ?? "http://localhost:3001").replace(/\/$/, "");
 
+/**
+ * Interruptor explícito de despliegue de fixtures. Sin él la ruta no existe, aunque haya
+ * TEST_API_TOKEN: el token por sí solo ya no habilita el reset en cualquier entorno.
+ */
+const RESET_SWITCH = "TEST_RESET_ENABLED";
+
 export async function POST(request: NextRequest) {
+  if (process.env[RESET_SWITCH] !== "true") {
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
   if (request.headers.get("origin") !== request.nextUrl.origin) {
     return NextResponse.json({ error: "Origin not allowed." }, { status: 403 });
   }
@@ -17,8 +27,8 @@ export async function POST(request: NextRequest) {
   });
   if (!authResponse.ok) return NextResponse.json({ error: "Sign in to continue." }, { status: 401 });
 
-  const authBody = (await authResponse.json()) as { user?: { role?: string } };
-  if (authBody.user?.role !== "ADMIN") {
+  const authUser = parseBackendSession(await authResponse.json().catch(() => null));
+  if (authUser?.role !== "ADMIN") {
     return NextResponse.json({ error: "Administrator access is required." }, { status: 403 });
   }
 

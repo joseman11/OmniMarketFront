@@ -60,7 +60,7 @@ En Windows (PowerShell): `Copy-Item .env.example .env.local`; si la política de
 | Detalle de orden | `GET /api/orders/:id`; edición de artículos con `PATCH /api/orders/:id` y `expectedVersion`; eliminación con `DELETE /api/orders/:id` |
 | Bulk | `PATCH /api/orders/bulk` con `{ ids, status }`; máximo 100 órdenes por transacción |
 | Auditoría | `GET /api/health`, `GET /api/test/analytics`, `GET /api/test/kanban-status` y `GET /api/test/contract` |
-| Reset de fixtures | `POST /api/test/reset-data`; el navegador lo invoca mediante una ruta servidor que comprueba origen, sesión ADMIN y `TEST_API_TOKEN` |
+| Reset de fixtures | `POST /api/test/reset-data`; el navegador lo invoca mediante una ruta servidor que exige `TEST_RESET_ENABLED=true` (despliegue de fixtures) y comprueba origen, sesión ADMIN y `TEST_API_TOKEN`; sin el interruptor responde 404 |
 
 `NEXT_PUBLIC_USE_MOCKS=true` habilita el adaptador local para desarrollo visual y E2E (siempre sobre `next dev`); en Railway/Vercel debe ser `false`. Un build o arranque con `NODE_ENV=production` falla si `NEXT_PUBLIC_USE_MOCKS` o `E2E_MOCK_AUTH` están en `true` (`lib/env-guard.ts`). La sesión E2E sólo se acepta con `E2E_MOCK_AUTH=true` y el modo de pruebas explícito `OMNIMARKET_TEST_ENV=true`, que fijan `playwright.config.ts`, `npm run test:cypress` y la CI. Las mutaciones reales envían credenciales incluidas para la cookie HttpOnly. El token de reset es solo de servidor y no debe llevar prefijo `NEXT_PUBLIC_`.
 
@@ -71,6 +71,7 @@ Conecta cada repositorio al servicio Railway correspondiente y deja que GitHub A
 - `OMNIMARKET_API_URL`: URL del backend accesible desde el servidor Next.js; usa la URL privada de Railway cuando esté disponible.
 - `NEXT_PUBLIC_USE_MOCKS=false`.
 - `TEST_API_TOKEN`: mismo valor privado que en backend, solo si se necesita habilitar el reset de fixtures.
+- `TEST_RESET_ENABLED=true`: interruptor explícito del reset de fixtures; déjalo sin definir en producción.
 
 En backend, configura `API_ORIGIN` y `WEB_ORIGIN` con el origen público del frontend. Registra Google/GitHub con callback `https://<dominio-frontend>/api/auth/{google|github}/callback`, y permite ese origen en CORS mediante `WEB_ORIGIN` o `CORS_ALLOWED_ORIGINS`. En Railway activa **Wait for CI**.
 
