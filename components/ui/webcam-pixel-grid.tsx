@@ -1,5 +1,6 @@
 "use client";
 import React, { useRef, useEffect, useState, useCallback } from "react";
+import { useManagedCamera } from "@/hooks/use-managed-camera";
 import { cn } from "@/lib/utils";
 
 type WebcamPixelGridProps = {
@@ -73,8 +74,6 @@ export const WebcamPixelGrid: React.FC<WebcamPixelGridProps> = ({
   const previousFrameRef = useRef<Uint8ClampedArray | null>(null);
   const pixelDataRef = useRef<PixelData[][]>([]);
   const animationRef = useRef<number>(0);
-  const [isReady, setIsReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showErrorPopup, setShowErrorPopup] = useState(true);
 
   // Parse monochrome color
@@ -111,47 +110,23 @@ export const WebcamPixelGrid: React.FC<WebcamPixelGridProps> = ({
     );
   }, [gridCols, gridRows]);
 
-  const streamRef = useRef<MediaStream | null>(null);
+  // La adquisición vive en useManagedCamera: cada ejecución del efecto es dueña de su stream.
+  const { state: camera, retry: requestCameraAccess } = useManagedCamera(videoRef);
+  const isReady = camera.status === "live";
+  const error = camera.status === "error" ? camera.error.message : null;
 
-  // Request camera access
-  const requestCameraAccess = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: "user",
-        },
-      });
-
-      streamRef.current = stream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setIsReady(true);
-        setError(null);
-        setShowErrorPopup(false);
-        onWebcamReady?.();
-      }
-    } catch (err) {
-      const error =
-        err instanceof Error ? err : new Error("Webcam access denied");
-      setError(error.message);
-      onWebcamError?.(error);
-    }
-  }, [onWebcamError, onWebcamReady]);
-
-  // Initialize webcam on mount
+  // Callbacks en refs: cambiar su identidad no debe relanzar la cámara.
+  const onWebcamReadyRef = useRef(onWebcamReady);
+  const onWebcamErrorRef = useRef(onWebcamError);
   useEffect(() => {
-    requestCameraAccess();
+    onWebcamReadyRef.current = onWebcamReady;
+    onWebcamErrorRef.current = onWebcamError;
+  });
 
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [requestCameraAccess]);
+  useEffect(() => {
+    if (camera.status === "live") onWebcamReadyRef.current?.();
+    if (camera.status === "error") onWebcamErrorRef.current?.(camera.error);
+  }, [camera]);
 
   // Main render loop
   const render = useCallback(() => {
