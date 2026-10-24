@@ -10,6 +10,7 @@ export const InfiniteMovingCards = <T extends { name: string } = Testimonial>({
   direction = "left",
   speed = "fast",
   pauseOnHover = true,
+  paused = false,
   className,
   itemClassName,
   renderItem,
@@ -18,6 +19,8 @@ export const InfiniteMovingCards = <T extends { name: string } = Testimonial>({
   direction?: "left" | "right";
   speed?: "fast" | "normal" | "slow";
   pauseOnHover?: boolean;
+  /** Pausa controlada (p. ej. botón persistente de pausa, WCAG 2.2.2). */
+  paused?: boolean;
   className?: string;
   itemClassName?: string;
   /** Render personalizado (p. ej. logos). Si se omite se usa la tarjeta de testimonio. */
@@ -87,6 +90,7 @@ export const InfiniteMovingCards = <T extends { name: string } = Testimonial>({
           "flex w-max min-w-full shrink-0 flex-nowrap gap-4 py-4",
           start && "animate-scroll",
           pauseOnHover && "hover:[animation-play-state:paused]",
+          paused && "[animation-play-state:paused]",
         )}
       >
         {renderItem

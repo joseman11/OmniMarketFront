@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useId } from "react";
 import {
   motion,
   useTransform,
@@ -20,6 +20,17 @@ export const AnimatedTooltip = ({
   }[];
 }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const tooltipId = useId();
+
+  // Escape descarta el tooltip abierto por hover o foco (WCAG 1.4.13).
+  useEffect(() => {
+    if (hoveredIndex === null) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setHoveredIndex(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [hoveredIndex]);
   const springConfig = { stiffness: 100, damping: 15 };
   const x = useMotionValue(0);
   const animationFrameRef = useRef<number | null>(null);
@@ -65,6 +76,8 @@ export const AnimatedTooltip = ({
           <AnimatePresence>
             {hoveredIndex === item.id && (
               <motion.div
+                id={`${tooltipId}-${item.id}`}
+                role="tooltip"
                 initial={{ opacity: 0, y: 20, scale: 0.6 }}
                 animate={{
                   opacity: 1,
@@ -93,14 +106,23 @@ export const AnimatedTooltip = ({
               </motion.div>
             )}
           </AnimatePresence>
-          <img
-            onMouseMove={handleMouseMove}
-            height={100}
-            width={100}
-            src={item.image}
-            alt={item.name}
-            className="relative !m-0 h-14 w-14 rounded-full border-2 border-white object-cover object-top !p-0 transition duration-500 group-hover:z-30 group-hover:scale-105"
-          />
+          {/* Enfocable: el tooltip también se abre con teclado y se describe por ARIA. */}
+          <button
+            type="button"
+            className="relative block rounded-full focus-visible:z-30 focus-visible:ring-2 focus-visible:ring-brand focus-visible:outline-none"
+            aria-describedby={hoveredIndex === item.id ? `${tooltipId}-${item.id}` : undefined}
+            onFocus={() => setHoveredIndex(item.id)}
+            onBlur={() => setHoveredIndex(null)}
+          >
+            <img
+              onMouseMove={handleMouseMove}
+              height={100}
+              width={100}
+              src={item.image}
+              alt={item.name}
+              className="relative !m-0 h-14 w-14 rounded-full border-2 border-white object-cover object-top !p-0 transition duration-500 group-hover:z-30 group-hover:scale-105"
+            />
+          </button>
         </div>
       ))}
     </>
