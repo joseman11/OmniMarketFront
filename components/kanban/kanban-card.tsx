@@ -3,9 +3,9 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
-import { Clock, ExternalLink } from "lucide-react";
+import { Clock, ExternalLink, GripVertical } from "lucide-react";
 import { motion } from "motion/react";
-import { memo } from "react";
+import { memo, type KeyboardEventHandler } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { KanbanCard as Card } from "@/lib/api/schemas";
 import { avatarDataUri } from "@/lib/avatar";
@@ -24,11 +24,14 @@ export const CardFace = memo(function CardFace({
   selected,
   onToggleSelect,
   overlay,
+  withHandle,
 }: {
   card: Card;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
   overlay?: boolean;
+  /** Reserva el hueco del botón de agarre, que posiciona SortableKanbanCard (CardFace sigue memoizado). */
+  withHandle?: boolean;
 }) {
   const ratio = marginRatio(card.margin, card.total);
   return (
@@ -40,7 +43,10 @@ export const CardFace = memo(function CardFace({
       )}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[11px] text-white/55">{card.orderNumber}</span>
+        <span className={cn("flex min-w-0 items-center gap-1", (withHandle || overlay) && "pl-5")}>
+          {overlay && <GripVertical className="absolute top-3.5 left-2 size-3.5 text-white/40" aria-hidden="true" />}
+          <span className="font-mono text-[11px] text-white/55">{card.orderNumber}</span>
+        </span>
         <div className="flex items-center gap-2">
           <span className={cn("rounded-md border px-1.5 py-px font-mono text-[10px]", marginTone(ratio))}>
             {formatPercent(ratio, { digits: 0 })} mg
@@ -104,12 +110,16 @@ export function SortableKanbanCard({
   layoutEnabled: boolean;
   dragDisabled?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
     data: { type: "card", status: card.status },
     attributes: { roleDescription: "tarjeta arrastrable" },
     disabled: dragDisabled,
   });
+  // La tarjeta es un contenedor (no un role=button con controles anidados): los atributos y
+  // el KeyboardSensor van al botón de agarre; el arrastre con puntero sigue en toda la tarjeta.
+  const { onKeyDown, ...pointerListeners } = listeners ?? {};
+  const onGripKeyDown = onKeyDown as KeyboardEventHandler<HTMLButtonElement> | undefined;
 
   return (
     <motion.div
@@ -124,17 +134,28 @@ export function SortableKanbanCard({
         data-testid={`kanban-card-${card.orderNumber}`}
         data-status={card.status}
         data-version={card.version}
+        role="group"
         aria-label={`${card.orderNumber}, ${card.customerName}, ${formatCurrency(card.total)}`}
         className={cn(
-          "cursor-grab touch-none rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-brand active:cursor-grabbing",
+          "relative cursor-grab touch-none rounded-xl outline-none active:cursor-grabbing",
           isDragging && "opacity-30",
           shaking && "animate-shake",
           highlight && "rounded-xl ring-2 ring-brand/60 transition-shadow duration-1000",
         )}
-        {...attributes}
-        {...listeners}
+        {...pointerListeners}
       >
-        <CardFace card={card} selected={selected} onToggleSelect={onToggleSelect} />
+        <CardFace card={card} selected={selected} onToggleSelect={onToggleSelect} withHandle />
+        <button
+          type="button"
+          ref={setActivatorNodeRef}
+          {...attributes}
+          onKeyDown={onGripKeyDown}
+          aria-label={`Mover orden ${card.orderNumber}`}
+          data-testid={`kanban-grip-${card.orderNumber}`}
+          className="absolute top-3 left-1.5 grid size-5 cursor-grab place-items-center rounded text-white/40 outline-none hover:text-white focus-visible:ring-2 focus-visible:ring-brand active:cursor-grabbing"
+        >
+          <GripVertical className="size-3.5" aria-hidden="true" />
+        </button>
       </div>
     </motion.div>
   );

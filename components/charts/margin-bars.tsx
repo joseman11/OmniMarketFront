@@ -3,6 +3,7 @@
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { CategoryPoint } from "@/lib/analytics";
 import { categoryColor } from "@/lib/catalog";
+import { summarizeMarginByCategory } from "@/lib/chart-summary";
 import { formatCurrency, formatPercent } from "@/lib/format";
 
 function MarginTooltip({ active, payload }: { active?: boolean; payload?: { payload: CategoryPoint }[] }) {
@@ -20,7 +21,8 @@ function MarginTooltip({ active, payload }: { active?: boolean; payload?: { payl
 /** Margen bruto % por categoría: barras horizontales con etiqueta directa. */
 export function MarginBars({ data, height = 260 }: { data: CategoryPoint[]; height?: number }) {
   return (
-    <div style={{ height }} role="img" aria-label="Gráfica de barras: margen bruto por categoría">
+    <>
+    <div style={{ height }} role="img" aria-label={`Gráfica de barras: margen bruto por categoría. ${summarizeMarginByCategory(data)}`}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical" margin={{ top: 0, right: 48, left: 0, bottom: 0 }} barCategoryGap={8}>
           <CartesianGrid horizontal={false} stroke="rgb(255 255 255 / 0.06)" />
@@ -60,5 +62,16 @@ export function MarginBars({ data, height = 260 }: { data: CategoryPoint[]; heig
         </BarChart>
       </ResponsiveContainer>
     </div>
+    {/* Alternativa de datos para lectores de pantalla con los mismos filtros. */}
+    <table className="sr-only">
+      <caption>Margen bruto por categoría</caption>
+      <thead><tr><th scope="col">Categoría</th><th scope="col">Margen %</th><th scope="col">Margen</th><th scope="col">Ingresos</th></tr></thead>
+      <tbody>
+        {data.map((d) => (
+          <tr key={d.categoryId}><td>{d.categoryName}</td><td>{formatPercent(d.marginPct)}</td><td>{formatCurrency(d.margin)}</td><td>{formatCurrency(d.revenue)}</td></tr>
+        ))}
+      </tbody>
+    </table>
+    </>
   );
 }

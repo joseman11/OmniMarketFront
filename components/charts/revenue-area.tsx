@@ -2,6 +2,7 @@
 
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { DayPoint } from "@/lib/analytics";
+import { summarizeRevenueByDay } from "@/lib/chart-summary";
 import { formatCurrency, formatDay, formatNumber } from "@/lib/format";
 
 function ChartTooltip({
@@ -25,7 +26,8 @@ function ChartTooltip({
 /** Ingresos por día (serie única → sin leyenda; el título la nombra). */
 export function RevenueAreaChart({ data, height = 260 }: { data: DayPoint[]; height?: number }) {
   return (
-    <div style={{ height }} role="img" aria-label="Gráfica de área: ingresos por día">
+    <>
+    <div style={{ height }} role="img" aria-label={`Gráfica de área: ingresos por día. ${summarizeRevenueByDay(data)}`}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <defs>
@@ -66,5 +68,16 @@ export function RevenueAreaChart({ data, height = 260 }: { data: DayPoint[]; hei
         </AreaChart>
       </ResponsiveContainer>
     </div>
+    {/* Alternativa de datos para lectores de pantalla con los mismos filtros. */}
+    <table className="sr-only">
+      <caption>Ingresos por día</caption>
+      <thead><tr><th scope="col">Día</th><th scope="col">Ingresos</th><th scope="col">Órdenes</th></tr></thead>
+      <tbody>
+        {data.map((p) => (
+          <tr key={p.day}><td>{formatDay(p.day, { year: true })}</td><td>{formatCurrency(p.revenue)}</td><td>{formatNumber(p.orders)}</td></tr>
+        ))}
+      </tbody>
+    </table>
+    </>
   );
 }

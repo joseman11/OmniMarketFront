@@ -23,8 +23,9 @@ test.describe("Kanban", () => {
   });
 
   test("se puede mover una orden sólo con el teclado (espacio + flechas)", async ({ page }) => {
-    const card = page.getByTestId("kanban-card-OM-1044");
-    await card.focus();
+    // El activador de teclado es el botón de agarre con nombre propio (la tarjeta es un contenedor).
+    const grip = page.getByRole("button", { name: "Mover orden OM-1044" });
+    await grip.focus();
     await page.keyboard.press("Space");
     await page.waitForTimeout(150);
     await page.keyboard.press("ArrowRight");
@@ -32,6 +33,8 @@ test.describe("Kanban", () => {
     await page.keyboard.press("Space");
     await expect(page.getByText(/OM-1044 → Procesando/)).toBeVisible();
     await expect(page.getByTestId("kanban-column-PROCESSING").getByTestId("kanban-card-OM-1044")).toBeVisible();
+    // El foco vuelve al agarre de la tarjeta movida.
+    await expect(page.getByRole("button", { name: "Mover orden OM-1044" })).toBeFocused();
   });
 
   test("si el servidor falla, el movimiento se revierte", async ({ page }) => {
