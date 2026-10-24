@@ -51,7 +51,8 @@ describe("Página principal", () => {
 
     // Las imágenes deben haber resuelto correctamente.
     cy.get("img").each(($img) => {
-      expect($img[0].naturalWidth, `imagen ${$img.attr("src")} cargada`).to.be.greaterThan(0);
+      const img = $img[0] as HTMLImageElement;
+      expect(img.naturalWidth, `imagen ${img.src} cargada`).to.be.greaterThan(0);
     });
 
     // Sin errores de JavaScript durante toda la carga.
