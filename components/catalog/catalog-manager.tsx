@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useId, useMemo, useRef, useState, type FormEvent } from "react";
+import { Tabs } from "radix-ui";
 import { useSWRConfig } from "swr";
 import { toast } from "sonner";
 import { Box, Pencil, Plus, RefreshCw, Search, Tags, Trash2 } from "lucide-react";
@@ -46,8 +47,18 @@ function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "Ocurrió un error inesperado.";
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="grid gap-1.5"><Label>{label}</Label>{children}</label>;
+/** Contenedor de campo: un único <label htmlFor>, sin anidar el control dentro de otro label. */
+function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
+  return <div className="grid gap-1.5"><Label htmlFor={htmlFor}>{label}</Label>{children}</div>;
+}
+
+const CATEGORY_ERROR_ID = "category-form-error";
+const PRODUCT_ERROR_ID = "product-form-error";
+
+/** Campo al que pertenece el primer error de Zod (para aria-invalid/aria-describedby). */
+function issueField(error: { issues: { path: (string | number)[] }[] }) {
+  const field = error.issues[0]?.path[0];
+  return typeof field === "string" ? field : null;
 }
 
 function TextField({
@@ -59,6 +70,7 @@ function TextField({
   min,
   max,
   step,
+  errorId,
 }: {
   label: string;
   value: string;
@@ -68,10 +80,16 @@ function TextField({
   min?: number;
   max?: number;
   step?: string;
+  /** ID del mensaje de error asociado cuando este campo es el inválido. */
+  errorId?: string;
 }) {
+  const id = useId();
   return (
-    <Field label={label}>
+    <Field label={label} htmlFor={id}>
       <Input
+        id={id}
+        aria-invalid={errorId ? true : undefined}
+        aria-describedby={errorId}
         type={type}
         value={value}
         placeholder={placeholder}
@@ -103,10 +121,12 @@ export function CatalogManager() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(EMPTY_CATEGORY);
   const [categoryError, setCategoryError] = useState("");
+  const [categoryErrorField, setCategoryErrorField] = useState<string | null>(null);
   const [productOpen, setProductOpen] = useState(false);
   const [productId, setProductId] = useState<string | null>(null);
   const [productForm, setProductForm] = useState<ProductForm>(EMPTY_PRODUCT);
   const [productError, setProductError] = useState("");
+  const [productErrorField, setProductErrorField] = useState<string | null>(null);
   const [productLoading, setProductLoading] = useState(false);
   // Época del formulario de producto: cambia al abrir/cerrar. Una respuesta tardía
   // (getProduct o guardado) de una época anterior no toca el formulario vigente.
@@ -145,6 +165,7 @@ export function CatalogManager() {
     setCategoryId(category?.id ?? null);
     setCategoryForm(category ? { name: category.name, slug: category.slug } : EMPTY_CATEGORY);
     setCategoryError("");
+    setCategoryErrorField(null);
     setCategoryOpen(true);
   };
 
@@ -153,12 +174,14 @@ export function CatalogManager() {
     const parsed = categoryInputSchema.safeParse(categoryForm);
     if (!parsed.success) {
       setCategoryError(parsed.error.issues[0]?.message ?? "Revisa los datos de la categoría.");
+      setCategoryErrorField(issueField(parsed.error));
       return;
     }
     if (categoryPending) return;
     const request = categoryRequest.current;
     setCategoryPending(true);
     setCategoryError("");
+    setCategoryErrorField(null);
     try {
       if (categoryId) await api.updateCategory(categoryId, parsed.data);
       else await api.createCategory(parsed.data);
@@ -175,6 +198,7 @@ export function CatalogManager() {
   const openProductForm = async (product?: ApiProduct) => {
     const request = ++productRequest.current;
     setProductError("");
+    setProductErrorField(null);
     setProductId(product?.id ?? null);
     setProductForm(product ? {
       categoryId: product.categoryId,
@@ -232,12 +256,14 @@ export function CatalogManager() {
     const parsed = productInputSchema.safeParse({ ...productForm, stock: Number(productForm.stock) });
     if (!parsed.success) {
       setProductError(parsed.error.issues[0]?.message ?? "Revisa los datos del producto.");
+      setProductErrorField(issueField(parsed.error));
       return;
     }
     if (productPending) return;
     const request = productRequest.current;
     setProductPending(true);
     setProductError("");
+    setProductErrorField(null);
     try {
       if (productId) await api.updateProduct(productId, parsed.data);
       else await api.createProduct(parsed.data);
@@ -293,30 +319,29 @@ export function CatalogManager() {
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
+      <Tabs.Root
+        value={tab}
+        onValueChange={(value) => { setTab(value as Tab); setSearch(""); }}
+        orientation="vertical"
+        className="grid gap-4 lg:grid-cols-[220px_1fr]"
+      >
         <Panel title="Catálogo" description={canManageCatalog ? "Gestión de inventario" : "Consulta de inventario"} className="h-fit">
-          <div className="grid gap-2" role="tablist" aria-label="Secciones del catálogo">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "products"}
-              onClick={() => { setTab("products"); setSearch(""); }}
+          <Tabs.List className="grid gap-2" aria-label="Secciones del catálogo">
+            <Tabs.Trigger
+              value="products"
               className={cn("flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition", tab === "products" ? "border-brand/35 bg-brand/10 text-white" : "border-white/[0.07] text-white/55 hover:bg-white/[0.04] hover:text-white")}
             >
               <span className="flex items-center gap-2"><Box className="size-4" /> Productos</span>
               <span className="font-mono text-xs text-white/40">{products.length}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "categories"}
-              onClick={() => { setTab("categories"); setSearch(""); }}
+            </Tabs.Trigger>
+            <Tabs.Trigger
+              value="categories"
               className={cn("flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition", tab === "categories" ? "border-brand/35 bg-brand/10 text-white" : "border-white/[0.07] text-white/55 hover:bg-white/[0.04] hover:text-white")}
             >
               <span className="flex items-center gap-2"><Tags className="size-4" /> Categorías</span>
               <span className="font-mono text-xs text-white/40">{categories.length}</span>
-            </button>
-          </div>
+            </Tabs.Trigger>
+          </Tabs.List>
           {!canManageCatalog && <p className="mt-4 text-xs leading-relaxed text-white/40">Esta cuenta solo puede consultar el catálogo.</p>}
         </Panel>
 
@@ -331,6 +356,8 @@ export function CatalogManager() {
           }
           className="min-w-0 p-0 md:p-0 [&>header]:px-5 [&>header]:pt-5 md:[&>header]:px-6 md:[&>header]:pt-6"
         >
+          {(["products", "categories"] as const).map((kind) => (
+          <Tabs.Content key={kind} value={kind} className="outline-none focus-visible:ring-2 focus-visible:ring-brand">
           {selectedRowsError ? (
             <div className="p-5"><ErrorState message={messageFrom(selectedRowsError)} onRetry={() => void refresh()} /></div>
           ) : selectedRowsLoading ? (
@@ -374,16 +401,18 @@ export function CatalogManager() {
               {filteredCategories.length === 0 && <p className="p-8 text-center text-sm text-white/40">No hay categorías que coincidan con la búsqueda.</p>}
             </div>
           )}
+          </Tabs.Content>
+          ))}
         </Panel>
-      </div>
+      </Tabs.Root>
 
       <Dialog open={categoryOpen} onOpenChange={setCategoryDialogOpen}>
         <DialogContent onCloseAutoFocus={categoryReturnFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
           <DialogHeader><DialogTitle>{categoryId ? "Editar categoría" : "Nueva categoría"}</DialogTitle><DialogDescription>El slug se usa en reportes y se genera a partir del nombre.</DialogDescription></DialogHeader>
           <form onSubmit={saveCategory} className="grid gap-4">
-            <TextField label="Nombre" value={categoryForm.name} onChange={(name) => setCategoryForm((form) => ({ ...form, name, slug: slugFrom(name) }))} placeholder="Ej. Hogar" />
-            <TextField label="Slug" value={categoryForm.slug} onChange={(slug) => setCategoryForm((form) => ({ ...form, slug }))} placeholder="hogar" />
-            {categoryError && <p role="alert" className="text-sm text-danger">{categoryError}</p>}
+            <TextField label="Nombre" value={categoryForm.name} onChange={(name) => setCategoryForm((form) => ({ ...form, name, slug: slugFrom(name) }))} placeholder="Ej. Hogar" errorId={categoryErrorField === "name" ? CATEGORY_ERROR_ID : undefined} />
+            <TextField label="Slug" value={categoryForm.slug} onChange={(slug) => setCategoryForm((form) => ({ ...form, slug }))} placeholder="hogar" errorId={categoryErrorField === "slug" ? CATEGORY_ERROR_ID : undefined} />
+            {categoryError && <p id={CATEGORY_ERROR_ID} role="alert" className="text-sm text-danger">{categoryError}</p>}
             <DialogFooter><Button type="button" variant="ghost" onClick={() => setCategoryDialogOpen(false)} disabled={categoryPending}>Cancelar</Button><Button type="submit" disabled={categoryPending}>{categoryPending ? "Guardando…" : "Guardar categoría"}</Button></DialogFooter>
           </form>
         </DialogContent>
@@ -394,15 +423,15 @@ export function CatalogManager() {
           <DialogHeader><DialogTitle>{productId ? "Editar producto" : "Nuevo producto"}</DialogTitle><DialogDescription>Los pedidos guardan el precio y costo vigentes al momento de crearse.</DialogDescription></DialogHeader>
           <form onSubmit={saveProduct} className="grid gap-4">
             <fieldset disabled={productLoading} aria-busy={productLoading} className="grid min-w-0 gap-4 disabled:opacity-60 sm:grid-cols-2">
-            <div className="sm:col-span-2"><Field label="Categoría"><select value={productForm.categoryId} onChange={(event) => setProductForm((form) => ({ ...form, categoryId: event.target.value }))} className="h-9 w-full rounded-lg border border-white/10 bg-[#15151e] px-3 text-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-brand" required><option value="">Selecciona una categoría</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></Field></div>
-            <TextField label="Nombre" value={productForm.name} onChange={(name) => setProductForm((form) => ({ ...form, name }))} placeholder="Producto" />
-            <TextField label="SKU" value={productForm.sku} onChange={(sku) => setProductForm((form) => ({ ...form, sku }))} placeholder="SKU-001" />
-            <TextField label="Precio" type="number" min={0} step="0.01" value={productForm.price} onChange={(price) => setProductForm((form) => ({ ...form, price }))} placeholder="0.00" />
-            <TextField label="Costo" type="number" min={0} step="0.01" value={productForm.cost} onChange={(cost) => setProductForm((form) => ({ ...form, cost }))} placeholder="0.00" />
-            <TextField label="Existencia" type="number" min={0} max={2_000_000} step="1" value={productForm.stock} onChange={(stock) => setProductForm((form) => ({ ...form, stock }))} />
+            <div className="sm:col-span-2"><Field label="Categoría" htmlFor="product-category"><select id="product-category" aria-invalid={productErrorField === "categoryId" ? true : undefined} aria-describedby={productErrorField === "categoryId" ? PRODUCT_ERROR_ID : undefined} value={productForm.categoryId} onChange={(event) => setProductForm((form) => ({ ...form, categoryId: event.target.value }))} className="h-9 w-full rounded-lg border border-white/10 bg-[#15151e] px-3 text-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-brand" required><option value="">Selecciona una categoría</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></Field></div>
+            <TextField label="Nombre" value={productForm.name} onChange={(name) => setProductForm((form) => ({ ...form, name }))} placeholder="Producto" errorId={productErrorField === "name" ? PRODUCT_ERROR_ID : undefined} />
+            <TextField label="SKU" value={productForm.sku} onChange={(sku) => setProductForm((form) => ({ ...form, sku }))} placeholder="SKU-001" errorId={productErrorField === "sku" ? PRODUCT_ERROR_ID : undefined} />
+            <TextField label="Precio" type="number" min={0} step="0.01" value={productForm.price} onChange={(price) => setProductForm((form) => ({ ...form, price }))} placeholder="0.00" errorId={productErrorField === "price" ? PRODUCT_ERROR_ID : undefined} />
+            <TextField label="Costo" type="number" min={0} step="0.01" value={productForm.cost} onChange={(cost) => setProductForm((form) => ({ ...form, cost }))} placeholder="0.00" errorId={productErrorField === "cost" ? PRODUCT_ERROR_ID : undefined} />
+            <TextField label="Existencia" type="number" min={0} max={2_000_000} step="1" value={productForm.stock} onChange={(stock) => setProductForm((form) => ({ ...form, stock }))} errorId={productErrorField === "stock" ? PRODUCT_ERROR_ID : undefined} />
             <label className="flex items-center gap-2 self-end pb-2 text-sm text-white/70"><input type="checkbox" checked={productForm.isActive} onChange={(event) => setProductForm((form) => ({ ...form, isActive: event.target.checked }))} className="size-4 accent-[#7c5cff]" /> Disponible para pedidos</label>
             </fieldset>
-            {productError && <p role="alert" className="text-sm text-danger">{productError}</p>}
+            {productError && <p id={PRODUCT_ERROR_ID} role="alert" className="text-sm text-danger">{productError}</p>}
             <DialogFooter><Button type="button" variant="ghost" onClick={() => setProductDialogOpen(false)} disabled={productPending}>Cancelar</Button><Button type="submit" disabled={productPending || productLoading || categories.length === 0}>{productPending ? "Guardando…" : productLoading ? "Cargando…" : "Guardar producto"}</Button></DialogFooter>
           </form>
         </DialogContent>

@@ -150,8 +150,10 @@ export function CreateOrderDialog({
                       render={({ field: f }) => (
                         <Select value={f.value} onValueChange={f.onChange}>
                             <SelectTrigger
+                              ref={f.ref}
                               aria-label={`Producto ${index + 1}`}
                               aria-invalid={!!err?.productId}
+                              aria-describedby={err?.productId ? `items-${index}-product-error` : undefined}
                               onBlur={f.onBlur}
                               disabled={productsLoading || products.length === 0}
                               className="w-full"
@@ -183,6 +185,7 @@ export function CreateOrderDialog({
                       max={99}
                       aria-label={`Cantidad ${index + 1}`}
                       aria-invalid={!!err?.quantity}
+                      aria-describedby={err?.quantity ? `items-${index}-qty-error` : undefined}
                       {...register(`items.${index}.quantity`)}
                     />
                     <FieldError id={`items-${index}-qty-error`} message={err?.quantity?.message} />

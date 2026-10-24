@@ -65,6 +65,8 @@ export function SidebarContent({
         href={item.href}
         data-testid={item.testId}
         aria-current={active ? "page" : undefined}
+        // Colapsada sólo queda el icono: el enlace conserva su nombre accesible.
+        aria-label={collapsed ? item.label : undefined}
         onClick={onNavigate}
         className={cn(
           "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] transition-colors",
