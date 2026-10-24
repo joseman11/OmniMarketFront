@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCategories, useProducts } from "@/lib/hooks/use-api";
+import { useCategories, useProductDetail, useProducts } from "@/lib/hooks/use-api";
 import { ApiError, api } from "@/lib/api/client";
 import { categoryInputSchema, productInputSchema, type ApiCategory, type ApiProduct } from "@/lib/api/schemas";
 import { formatCurrency } from "@/lib/format";
@@ -93,7 +93,11 @@ export function CatalogManager() {
 
   const [tab, setTab] = useState<Tab>("products");
   const [search, setSearch] = useState("");
-  const [pending, setPending] = useState(false);
+  // Cada operación tiene su propio estado pendiente.
+  const [categoryPending, setCategoryPending] = useState(false);
+  const [productPending, setProductPending] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
+  const pending = categoryPending || productPending || deletePending;
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(EMPTY_CATEGORY);
@@ -103,11 +107,13 @@ export function CatalogManager() {
   const [productForm, setProductForm] = useState<ProductForm>(EMPTY_PRODUCT);
   const [productError, setProductError] = useState("");
   const [productLoading, setProductLoading] = useState(false);
-  // Evita que una respuesta tardía de getProduct pise el formulario de otro producto.
+  // Época del formulario de producto: cambia al abrir/cerrar. Una respuesta tardía
+  // (getProduct o guardado) de una época anterior no toca el formulario vigente.
   const productRequest = useRef(0);
-  const [productDetail, setProductDetail] = useState<ApiProduct | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const categoryRequest = useRef(0);
+  const [detailProductId, setDetailProductId] = useState<string | null>(null);
+  const detail = useProductDetail(detailProductId);
+  const productDetail = detail.data ?? null;
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   const filteredProducts = useMemo(() => {
@@ -126,6 +132,7 @@ export function CatalogManager() {
   };
 
   const openCategoryForm = (category?: ApiCategory) => {
+    categoryRequest.current++;
     setCategoryId(category?.id ?? null);
     setCategoryForm(category ? { name: category.name, slug: category.slug } : EMPTY_CATEGORY);
     setCategoryError("");
@@ -139,18 +146,20 @@ export function CatalogManager() {
       setCategoryError(parsed.error.issues[0]?.message ?? "Revisa los datos de la categoría.");
       return;
     }
-    setPending(true);
+    if (categoryPending) return;
+    const request = categoryRequest.current;
+    setCategoryPending(true);
     setCategoryError("");
     try {
       if (categoryId) await api.updateCategory(categoryId, parsed.data);
       else await api.createCategory(parsed.data);
-      setCategoryOpen(false);
+      if (request === categoryRequest.current) setCategoryOpen(false);
       await refreshGlobal((key) => key === "categories" || (Array.isArray(key) && key[0] === "products"));
       toast.success(categoryId ? "Categoría actualizada" : "Categoría creada");
     } catch (error) {
-      setCategoryError(messageFrom(error));
+      if (request === categoryRequest.current) setCategoryError(messageFrom(error));
     } finally {
-      setPending(false);
+      setCategoryPending(false);
     }
   };
 
@@ -197,19 +206,16 @@ export function CatalogManager() {
     }
   };
 
-  const showProduct = async (productIdToShow: string) => {
-    setDetailOpen(true);
-    setDetailLoading(true);
-    setProductDetail(null);
-    try {
-      const result = await api.getProduct(productIdToShow);
-      setProductDetail(result.data.item);
-    } catch (error) {
-      setDetailOpen(false);
-      toast.error("No se pudo consultar el producto", { description: messageFrom(error) });
-    } finally {
-      setDetailLoading(false);
-    }
+  /** Cancelar, X y Escape pasan por aquí: invalidan la época y no cierran mientras se guarda. */
+  const setProductDialogOpen = (open: boolean) => {
+    if (!open && productPending) return;
+    if (!open) productRequest.current++;
+    setProductOpen(open);
+  };
+  const setCategoryDialogOpen = (open: boolean) => {
+    if (!open && categoryPending) return;
+    if (!open) categoryRequest.current++;
+    setCategoryOpen(open);
   };
 
   const saveProduct = async (event: FormEvent<HTMLFormElement>) => {
@@ -219,24 +225,26 @@ export function CatalogManager() {
       setProductError(parsed.error.issues[0]?.message ?? "Revisa los datos del producto.");
       return;
     }
-    setPending(true);
+    if (productPending) return;
+    const request = productRequest.current;
+    setProductPending(true);
     setProductError("");
     try {
       if (productId) await api.updateProduct(productId, parsed.data);
       else await api.createProduct(parsed.data);
-      setProductOpen(false);
-      await refreshGlobal((key) => Array.isArray(key) && key[0] === "products");
+      if (request === productRequest.current) setProductOpen(false);
+      await refreshGlobal((key) => Array.isArray(key) && (key[0] === "products" || key[0] === "product-detail"));
       toast.success(productId ? "Producto actualizado" : "Producto creado");
     } catch (error) {
-      setProductError(messageFrom(error));
+      if (request === productRequest.current) setProductError(messageFrom(error));
     } finally {
-      setPending(false);
+      setProductPending(false);
     }
   };
 
   const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setPending(true);
+    if (!deleteTarget || deletePending) return;
+    setDeletePending(true);
     try {
       if (deleteTarget.kind === "categories") await api.deleteCategory(deleteTarget.id);
       else await api.deleteProduct(deleteTarget.id);
@@ -246,7 +254,7 @@ export function CatalogManager() {
     } catch (error) {
       toast.error("No se pudo eliminar", { description: messageFrom(error) });
     } finally {
-      setPending(false);
+      setDeletePending(false);
     }
   };
 
@@ -332,7 +340,7 @@ export function CatalogManager() {
                       <td className="px-4 py-3 font-mono text-white/70">{product.stock}</td>
                       <td className="px-4 py-3"><span className={cn("rounded-full border px-2 py-1 text-[10px]", product.isActive ? "border-success/25 bg-success/10 text-success" : "border-white/10 bg-white/[0.03] text-white/40")}>{product.isActive ? "Activo" : "Inactivo"}</span></td>
                       <td className="px-5 py-3"><div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => void showProduct(product.id)}>Ver</Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDetailProductId(product.id)}>Ver</Button>
                         {canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Editar ${product.name}`} onClick={() => void openProductForm(product)}><Pencil className="size-3.5" /></Button>}
                         {canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Eliminar ${product.name}`} onClick={() => setDeleteTarget({ kind: "products", id: product.id, label: product.name })}><Trash2 className="size-3.5 text-danger" /></Button>}
                       </div></td>
@@ -359,19 +367,19 @@ export function CatalogManager() {
         </Panel>
       </div>
 
-      <Dialog open={categoryOpen} onOpenChange={setCategoryOpen}>
+      <Dialog open={categoryOpen} onOpenChange={setCategoryDialogOpen}>
         <DialogContent className="border-white/10 bg-[#0e0e15] sm:max-w-md">
           <DialogHeader><DialogTitle>{categoryId ? "Editar categoría" : "Nueva categoría"}</DialogTitle><DialogDescription>El slug se usa en reportes y se genera a partir del nombre.</DialogDescription></DialogHeader>
           <form onSubmit={saveCategory} className="grid gap-4">
             <TextField label="Nombre" value={categoryForm.name} onChange={(name) => setCategoryForm((form) => ({ ...form, name, slug: slugFrom(name) }))} placeholder="Ej. Hogar" />
             <TextField label="Slug" value={categoryForm.slug} onChange={(slug) => setCategoryForm((form) => ({ ...form, slug }))} placeholder="hogar" />
             {categoryError && <p role="alert" className="text-sm text-danger">{categoryError}</p>}
-            <DialogFooter><Button type="button" variant="ghost" onClick={() => setCategoryOpen(false)} disabled={pending}>Cancelar</Button><Button type="submit" disabled={pending}>{pending ? "Guardando…" : "Guardar categoría"}</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="ghost" onClick={() => setCategoryDialogOpen(false)} disabled={categoryPending}>Cancelar</Button><Button type="submit" disabled={categoryPending}>{categoryPending ? "Guardando…" : "Guardar categoría"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={productOpen} onOpenChange={(open) => { if (!open) productRequest.current++; setProductOpen(open); }}>
+      <Dialog open={productOpen} onOpenChange={setProductDialogOpen}>
         <DialogContent className="max-h-[90svh] overflow-y-auto border-white/10 bg-[#0e0e15] sm:max-w-xl">
           <DialogHeader><DialogTitle>{productId ? "Editar producto" : "Nuevo producto"}</DialogTitle><DialogDescription>Los pedidos guardan el precio y costo vigentes al momento de crearse.</DialogDescription></DialogHeader>
           <form onSubmit={saveProduct} className="grid gap-4">
@@ -385,23 +393,23 @@ export function CatalogManager() {
             <label className="flex items-center gap-2 self-end pb-2 text-sm text-white/70"><input type="checkbox" checked={productForm.isActive} onChange={(event) => setProductForm((form) => ({ ...form, isActive: event.target.checked }))} className="size-4 accent-[#7c5cff]" /> Disponible para pedidos</label>
             </fieldset>
             {productError && <p role="alert" className="text-sm text-danger">{productError}</p>}
-            <DialogFooter><Button type="button" variant="ghost" onClick={() => setProductOpen(false)} disabled={pending}>Cancelar</Button><Button type="submit" disabled={pending || productLoading || categories.length === 0}>{pending ? "Guardando…" : productLoading ? "Cargando…" : "Guardar producto"}</Button></DialogFooter>
+            <DialogFooter><Button type="button" variant="ghost" onClick={() => setProductDialogOpen(false)} disabled={productPending}>Cancelar</Button><Button type="submit" disabled={productPending || productLoading || categories.length === 0}>{productPending ? "Guardando…" : productLoading ? "Cargando…" : "Guardar producto"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+      <Dialog open={detailProductId !== null} onOpenChange={(open) => !open && setDetailProductId(null)}>
         <DialogContent className="border-white/10 bg-[#0e0e15] sm:max-w-md">
           <DialogHeader><DialogTitle>Detalle del producto</DialogTitle><DialogDescription>Consulta directa del registro en el backend.</DialogDescription></DialogHeader>
-          {detailLoading ? <Skeleton className="h-32 w-full" /> : productDetail ? <div className="grid grid-cols-2 gap-3 text-sm"><div className="text-white/40">Nombre</div><div className="text-right text-white">{productDetail.name}</div><div className="text-white/40">SKU</div><div className="text-right font-mono text-white">{productDetail.sku}</div><div className="text-white/40">Categoría</div><div className="text-right text-white">{productDetail.category.name}</div><div className="text-white/40">Precio</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.price)}</div><div className="text-white/40">Costo</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.cost)}</div><div className="text-white/40">Existencia</div><div className="text-right font-mono text-white">{productDetail.stock}</div></div> : null}
-          <DialogFooter>{canManageCatalog && productDetail && <Button variant="outline" onClick={() => { setDetailOpen(false); void openProductForm(productDetail); }}><Pencil className="size-3.5" /> Editar</Button>}<Button variant="ghost" onClick={() => setDetailOpen(false)}>Cerrar</Button></DialogFooter>
+          {detail.error && !productDetail ? <ErrorState message={`No se pudo consultar el producto: ${messageFrom(detail.error)}`} onRetry={() => void detail.mutate()} /> : detail.isLoading || !productDetail ? <Skeleton className="h-32 w-full" /> : productDetail ? <div className="grid grid-cols-2 gap-3 text-sm"><div className="text-white/40">Nombre</div><div className="text-right text-white">{productDetail.name}</div><div className="text-white/40">SKU</div><div className="text-right font-mono text-white">{productDetail.sku}</div><div className="text-white/40">Categoría</div><div className="text-right text-white">{productDetail.category.name}</div><div className="text-white/40">Precio</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.price)}</div><div className="text-white/40">Costo</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.cost)}</div><div className="text-white/40">Existencia</div><div className="text-right font-mono text-white">{productDetail.stock}</div></div> : null}
+          <DialogFooter>{canManageCatalog && productDetail && <Button variant="outline" onClick={() => { setDetailProductId(null); void openProductForm(productDetail); }}><Pencil className="size-3.5" /> Editar</Button>}<Button variant="ghost" onClick={() => setDetailProductId(null)}>Cerrar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && !deletePending && setDeleteTarget(null)}>
         <DialogContent className="border-white/10 bg-[#0e0e15] sm:max-w-md">
           <DialogHeader><DialogTitle>Confirmar eliminación</DialogTitle><DialogDescription>Se eliminará “{deleteTarget?.label}”. La operación puede rechazarse si el registro tiene relaciones activas.</DialogDescription></DialogHeader>
-          <DialogFooter><Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={pending}>Cancelar</Button><Button variant="destructive" onClick={() => void confirmDelete()} disabled={pending}>{pending ? "Eliminando…" : "Eliminar"}</Button></DialogFooter>
+          <DialogFooter><Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={deletePending}>Cancelar</Button><Button variant="destructive" onClick={() => void confirmDelete()} disabled={deletePending}>{deletePending ? "Eliminando…" : "Eliminar"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

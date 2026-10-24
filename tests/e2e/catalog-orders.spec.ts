@@ -57,6 +57,24 @@ test.describe("Catálogo y detalle de órdenes", () => {
     await expect(page.getByRole("row", { name: /Accesorios premium E2E/ })).toHaveCount(0);
   });
 
+  test("el detalle de producto muestra sólo el producto seleccionado", async ({ page }) => {
+    await page.goto("/dashboard/catalog");
+    const rows = page.getByRole("row").filter({ has: page.getByRole("button", { name: "Ver" }) });
+    await expect(rows.nth(1)).toBeVisible();
+    const nameOf = async (index: number) => (await rows.nth(index).locator("td").first().locator("div").first().innerText()).trim();
+    const first = await nameOf(0);
+    const second = await nameOf(1);
+
+    await rows.nth(0).getByRole("button", { name: "Ver" }).click();
+    await expect(page.getByRole("dialog")).toContainText(first);
+    await page.getByRole("dialog").getByRole("button", { name: "Cerrar", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    await rows.nth(1).getByRole("button", { name: "Ver" }).click();
+    await expect(page.getByRole("dialog")).toContainText(second);
+    await expect(page.getByRole("dialog")).not.toContainText(first);
+  });
+
   test("consulta, actualiza artículos y elimina desde el detalle de una orden", async ({ page }) => {
     await page.goto("/dashboard/kanban");
     await page.getByRole("link", { name: "Ver detalle de OM-1041" }).click();

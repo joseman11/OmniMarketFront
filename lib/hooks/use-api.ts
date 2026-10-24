@@ -36,3 +36,16 @@ export function useCategories() {
 export function useProducts(includeInactive = false) {
   return useSWR(["products", includeInactive], () => api.getProducts({ includeInactive }));
 }
+
+/**
+ * Detalle de producto seleccionado por ID. SWR aísla la respuesta por clave: la respuesta
+ * tardía de A nunca se muestra para B, y no se conserva el producto anterior al cambiar.
+ * La caché ya tiene alcance de sesión (SessionScope).
+ */
+export function useProductDetail(productId: string | null) {
+  return useSWR(
+    productId ? (["product-detail", productId] as const) : null,
+    ([, id]) => api.getProduct(id).then((result) => result.data.item),
+    { keepPreviousData: false },
+  );
+}
