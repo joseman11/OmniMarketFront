@@ -38,6 +38,7 @@ test.describe("Kanban", () => {
     await expect(page.getByText("Selecciona un producto")).toBeVisible();
 
     await page.getByLabel("Cliente").fill("Lucía Prueba E2E");
+    await page.getByLabel("Correo").fill("lucia@example.test");
     await page.getByLabel("Producto 1", { exact: true }).click();
     await page.getByRole("option", { name: /Sérum vitamina C/ }).click();
     await page.getByLabel("Cantidad 1", { exact: true }).fill("2");

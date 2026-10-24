@@ -17,21 +17,18 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   createOrderInputSchema,
-  ORDER_STATUSES,
+  type ApiProduct,
   type CreateOrderFormValues,
   type CreateOrderInput,
 } from "@/lib/api/schemas";
-import { CATEGORIES, PRODUCTS, findProduct } from "@/lib/catalog";
 import { orderTotal } from "@/lib/finance";
 import { formatCurrency } from "@/lib/format";
-import { STATUS_META } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 const DEFAULTS: CreateOrderFormValues = {
   customerName: "",
   customerEmail: "",
   items: [{ productId: "", quantity: 1 }],
-  status: "PENDING",
 };
 
 function FieldError({ id, message }: { id: string; message?: string }) {
@@ -47,9 +44,13 @@ export function CreateOrderDialog({
   open,
   onOpenChange,
   onCreate,
+  products,
+  productsLoading,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  products: ApiProduct[];
+  productsLoading: boolean;
   /** Debe lanzar si el servidor falla (el diálogo se mantiene abierto). */
   onCreate: (input: CreateOrderInput) => Promise<void>;
 }) {
@@ -64,8 +65,16 @@ export function CreateOrderDialog({
   const estimated = orderTotal(
     (items ?? []).map((i) => ({
       quantity: Number(i?.quantity) || 0,
-      unitPrice: findProduct(i?.productId ?? "")?.price ?? 0,
+      unitPrice: products.find((product) => product.id === i?.productId)?.price ?? 0,
     })),
+  );
+  const productGroups = Array.from(
+    products.reduce((groups, product) => {
+      const group = groups.get(product.category.name) ?? [];
+      group.push(product);
+      groups.set(product.category.name, group);
+      return groups;
+    }, new Map<string, ApiProduct[]>()),
   );
 
   const submit = handleSubmit(async (values) => {
@@ -110,11 +119,12 @@ export function CreateOrderDialog({
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="customerEmail">
-                Correo <span className="text-white/35">(opcional)</span>
+                Correo
               </Label>
               <Input
                 id="customerEmail"
                 type="email"
+                required
                 placeholder="cliente@correo.mx"
                 aria-invalid={!!errors.customerEmail}
                 aria-describedby={errors.customerEmail ? "customerEmail-error" : undefined}
@@ -136,19 +146,20 @@ export function CreateOrderDialog({
                       name={`items.${index}.productId`}
                       render={({ field: f }) => (
                         <Select value={f.value} onValueChange={f.onChange}>
-                          <SelectTrigger
-                            aria-label={`Producto ${index + 1}`}
-                            aria-invalid={!!err?.productId}
-                            onBlur={f.onBlur}
-                            className="w-full"
+                            <SelectTrigger
+                              aria-label={`Producto ${index + 1}`}
+                              aria-invalid={!!err?.productId}
+                              onBlur={f.onBlur}
+                              disabled={productsLoading || products.length === 0}
+                              className="w-full"
                           >
                             <SelectValue placeholder="Selecciona un producto" />
                           </SelectTrigger>
                           <SelectContent className="max-h-72">
-                            {CATEGORIES.map((c) => (
-                              <div key={c.id}>
-                                <div className="px-2 pt-2 pb-1 text-[10px] tracking-wider text-white/35 uppercase">{c.name}</div>
-                                {PRODUCTS.filter((p) => p.categoryId === c.id).map((p) => (
+                            {productGroups.map(([categoryName, categoryProducts]) => (
+                              <div key={categoryName}>
+                                <div className="px-2 pt-2 pb-1 text-[10px] tracking-wider text-white/35 uppercase">{categoryName}</div>
+                                {categoryProducts.map((p) => (
                                   <SelectItem key={p.id} value={p.id}>
                                     {p.name} · {formatCurrency(p.price)}
                                   </SelectItem>
@@ -159,7 +170,7 @@ export function CreateOrderDialog({
                         </Select>
                       )}
                     />
-                    <FieldError id={`items-${index}-product-error`} message={err?.productId?.message} />
+            <FieldError id={`items-${index}-product-error`} message={err?.productId?.message} />
                   </div>
                   <div className="grid gap-1.5">
                     <Input
@@ -198,31 +209,11 @@ export function CreateOrderDialog({
             >
               <Plus className="size-3.5" /> Agregar producto
             </Button>
+            {products.length === 0 && !productsLoading && (
+              <p className="text-xs text-white/45">El catálogo del backend no tiene productos activos para crear órdenes.</p>
+            )}
+            {productsLoading && <p className="text-xs text-white/45">Cargando catálogo…</p>}
           </fieldset>
-
-          <div className="grid gap-1.5">
-            <Label htmlFor="status">Estado inicial</Label>
-            <Controller
-              control={control}
-              name="status"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="status" className="w-full" aria-invalid={!!errors.status}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ORDER_STATUSES.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        <span className="size-2 rounded-full" style={{ background: STATUS_META[s].color }} />
-                        {STATUS_META[s].label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            <FieldError id="status-error" message={errors.status?.message} />
-          </div>
 
           <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
             <span className="text-sm text-white/55">Total estimado</span>

@@ -10,7 +10,7 @@ const TECH = [
   { name: "PostgreSQL", mono: "PG", color: "#6aa3ff" },
   { name: "Railway", mono: "Rw", color: "#c084fc" },
   { name: "GitHub Actions", mono: "GA", color: "#3ddc97" },
-  { name: "Auth.js", mono: "Au", color: "#ff9a5c" },
+  { name: "Express API", mono: "Ex", color: "#ff9a5c" },
 ];
 
 export function TechMarquee() {

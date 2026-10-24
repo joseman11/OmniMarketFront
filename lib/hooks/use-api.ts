@@ -14,7 +14,7 @@ export function useAnalytics(q: AnalyticsQuery) {
 /** Serie completa del rango para gráficas/KPIs (una sola página grande). */
 export function useAnalyticsSeries(filters: AnalyticsFilters = {}) {
   return useSWR(["analytics-series", filters.from ?? "", filters.to ?? "", filters.categoryId ?? ""], () =>
-    api.getAnalytics({ page: 1, limit: 500, ...filters }).then((r) => r.data.data),
+    api.getAnalyticsSeries(filters).then((r) => r.data.data),
   );
 }
 
@@ -22,4 +22,12 @@ export function useKanbanBoard() {
   return useSWR("kanban-board", () => api.getKanbanStatus().then((r) => r.data), {
     revalidateOnFocus: true,
   });
+}
+
+export function useCategories() {
+  return useSWR("categories", () => api.getCategories());
+}
+
+export function useProducts(includeInactive = false) {
+  return useSWR(["products", includeInactive], () => api.getProducts({ includeInactive }));
 }

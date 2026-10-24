@@ -2,7 +2,8 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Clock } from "lucide-react";
+import Link from "next/link";
+import { Clock, ExternalLink } from "lucide-react";
 import { motion } from "motion/react";
 import { memo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -58,6 +59,15 @@ export const CardFace = memo(function CardFace({
               )}
             />
           )}
+          <Link
+            href={`/dashboard/orders/${encodeURIComponent(card.id)}`}
+            onPointerDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+            aria-label={`Ver detalle de ${card.orderNumber}`}
+            className="grid size-6 place-items-center rounded-md text-white/35 opacity-60 transition hover:bg-white/[0.07] hover:text-white focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand group-hover/card:opacity-100"
+          >
+            <ExternalLink className="size-3.5" />
+          </Link>
         </div>
       </div>
       <div className="mt-2 truncate text-sm font-medium text-white">{card.customerName}</div>

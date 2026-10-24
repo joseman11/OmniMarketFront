@@ -6,12 +6,27 @@ export type RawCard = {
   id: string;
   orderNumber: string;
   customerName: string;
+  customerEmail: string;
+  createdAt: string;
+  items: Array<{ id: string; productId: string; quantity: number; unitPrice: string; unitCost: string }>;
   total: string;
   margin: string;
   position: number;
   version: number;
   status: OrderStatus;
   updatedAt: string;
+};
+
+export type RawCategory = { id: string; name: string; slug: string };
+export type RawProduct = {
+  id: string;
+  sku: string;
+  name: string;
+  categoryId: string;
+  price: string;
+  cost: string;
+  stock: number;
+  isActive: boolean;
 };
 
 export type RawAnalyticsRow = {
@@ -29,7 +44,42 @@ export type MockDb = {
   nextOrderSeq: number;
   cards: RawCard[];
   analytics: RawAnalyticsRow[];
+  categories: RawCategory[];
+  products: RawProduct[];
 };
+
+const MOCK_CATEGORY_IDS = [
+  "00000000-0000-4000-8000-000000000001",
+  "00000000-0000-4000-8000-000000000002",
+  "00000000-0000-4000-8000-000000000003",
+  "00000000-0000-4000-8000-000000000004",
+  "00000000-0000-4000-8000-000000000005",
+  "00000000-0000-4000-8000-000000000006",
+];
+
+const slugify = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+function seedCatalog() {
+  const categories: RawCategory[] = CATEGORIES.map((category, index) => ({
+    id: MOCK_CATEGORY_IDS[index]!,
+    name: category.name,
+    slug: slugify(category.name),
+  }));
+  const products: RawProduct[] = PRODUCTS.map((product) => {
+    const categoryIndex = CATEGORIES.findIndex((category) => category.id === product.categoryId);
+    return {
+      id: product.id,
+      sku: product.id.toUpperCase(),
+      name: product.name,
+      categoryId: MOCK_CATEGORY_IDS[categoryIndex]!,
+      price: product.price.toFixed(2),
+      cost: product.cost.toFixed(2),
+      stock: 100,
+      isActive: true,
+    };
+  });
+  return { categories, products };
+}
 
 /** PRNG determinista (mulberry32) para que el reset produzca siempre el mismo set. */
 function rng(seed: number) {
@@ -67,6 +117,7 @@ export const SEED_DAYS = 60;
 
 export function createSeed(now = new Date()): MockDb {
   const rand = rng(20261023);
+  const { categories, products } = seedCatalog();
 
   // Analítica diaria por categoría (SalesDailyMetric)
   const analytics: RawAnalyticsRow[] = [];
@@ -83,7 +134,7 @@ export function createSeed(now = new Date()): MockDb {
       const margin = revenue * (p.margin + (rand() - 0.5) * 0.08);
       analytics.push({
         day: toIsoDay(day),
-        categoryId: cat.id,
+        categoryId: MOCK_CATEGORY_IDS[CATEGORIES.findIndex((category) => category.id === cat.id)]!,
         categoryName: cat.name,
         ordersCount: orders,
         revenue: revenue.toFixed(2),
@@ -108,26 +159,38 @@ export function createSeed(now = new Date()): MockDb {
       const lines = 1 + Math.floor(rand() * 3);
       let total = 0;
       let cost = 0;
+      const items: RawCard["items"] = [];
       for (let l = 0; l < lines; l++) {
         const product = PRODUCTS[Math.floor(rand() * PRODUCTS.length)]!;
         const qty = 1 + Math.floor(rand() * 3);
         total += product.price * qty;
         cost += product.cost * qty;
+        items.push({
+          id: `line_${seq}_${l}`,
+          productId: product.id,
+          quantity: qty,
+          unitPrice: product.price.toFixed(2),
+          unitCost: product.cost.toFixed(2),
+        });
       }
       seq += 1;
+      const createdAt = new Date(now.getTime() - Math.floor(rand() * 72 * 3600 * 1000)).toISOString();
       cards.push({
         id: `ord_${seq.toString(36)}${Math.floor(rand() * 1e6).toString(36)}`,
         orderNumber: `OM-${seq}`,
         customerName: CUSTOMERS[Math.floor(rand() * CUSTOMERS.length)]!,
+        customerEmail: `cliente${seq}@example.test`,
+        createdAt,
+        items,
         total: total.toFixed(2),
         margin: (total - cost).toFixed(2),
         position: pos,
         version: 1,
         status,
-        updatedAt: new Date(now.getTime() - Math.floor(rand() * 72 * 3600 * 1000)).toISOString(),
+        updatedAt: createdAt,
       });
     }
   }
 
-  return { seededAt: now.toISOString(), nextOrderSeq: seq + 1, cards, analytics };
+  return { seededAt: now.toISOString(), nextOrderSeq: seq + 1, cards, analytics, categories, products };
 }

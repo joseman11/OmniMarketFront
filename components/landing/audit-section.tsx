@@ -9,13 +9,13 @@ import { Reveal, SectionHeading } from "@/components/landing/primitives";
 
 const ENDPOINTS = [
   {
-    title: "GET /api/test/analytics",
+    title: "GET /api/analytics",
     description: "Métricas de ventas por día y categoría con paginación en servidor: ?page=1&limit=50. Debe responder en < 300 ms.",
     link: "/dashboard/audit#analytics",
   },
   {
-    title: "GET /api/test/kanban-status",
-    description: "Estado actual de cada columna del tablero para verificar un movimiento Drag & Drop tras recargar.",
+    title: "GET /api/orders",
+    description: "Órdenes paginadas para verificar los estados y posiciones tras mover una tarjeta.",
     link: "/dashboard/audit#kanban-status",
   },
   {
@@ -34,12 +34,12 @@ const STEPS = [
   {
     n: "02",
     title: "Mide la analítica",
-    body: "Prueba GET /api/test/analytics con distintos page/limit y verifica código HTTP y latencia.",
+    body: "Prueba GET /api/analytics con distintos page/limit y verifica código HTTP y latencia.",
   },
   {
     n: "03",
     title: "Verifica el Kanban",
-    body: "Mueve una orden en el tablero y confirma su nuevo estado con GET /api/test/kanban-status.",
+    body: "Mueve una orden en el tablero y confirma su estado con GET /api/orders.",
   },
 ];
 

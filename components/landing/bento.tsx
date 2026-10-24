@@ -175,8 +175,8 @@ function LatencyAnim() {
 
 function EndpointsAnim() {
   const lines = [
-    { m: "GET", p: "/api/test/analytics?page=1", s: "200", t: "182ms" },
-    { m: "GET", p: "/api/test/kanban-status", s: "200", t: "96ms" },
+    { m: "GET", p: "/api/analytics?page=1", s: "200", t: "182ms" },
+    { m: "GET", p: "/api/orders?page=1", s: "200", t: "96ms" },
     { m: "POST", p: "/api/test/reset-data", s: "200", t: "241ms" },
   ];
   return (
@@ -293,7 +293,7 @@ export function Bento() {
       <div className="mx-auto max-w-6xl">
         <Reveal>
           <BentoGrid className="max-w-none md:auto-rows-[20rem]">
-            <BentoItem title="OAuth 2.0 con Google y GitHub" description="Sin contraseñas. Sesión JWT de Auth.js v5." color="#a493ff">
+            <BentoItem title="OAuth 2.0 con Google y GitHub" description="Sin contraseñas. Sesión HttpOnly administrada por la API." color="#a493ff">
               <OAuthAnim />
             </BentoItem>
             <BentoItem className="md:col-span-2" title="Bulk Update atómico" description="Todo o nada: una transacción para N órdenes, con confirmación previa." color="#ff9a5c">

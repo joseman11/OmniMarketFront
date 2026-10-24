@@ -169,9 +169,14 @@ export function AuditPanel() {
   const { mutate } = useSWRConfig();
   const analytics = useRunner();
   const kanban = useRunner();
+  const testAnalytics = useRunner();
+  const testKanban = useRunner();
+  const contract = useRunner();
+  const health = useRunner();
   const reset = useRunner();
   const [page, setPage] = useState("1");
   const [limit, setLimit] = useState("50");
+  const [orderNumber, setOrderNumber] = useState("OM-TEST-1001");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
 
@@ -180,7 +185,7 @@ export function AuditPanel() {
   const doReset = async () => {
     setConfirmOpen(false);
     setConfirmText("");
-    const res = await reset.run("POST", "/api/test/reset-data");
+    const res = await reset.run("POST", "/api/internal/test-reset");
     if (res && res.status >= 200 && res.status < 300) {
       // Invalida todas las cachés: el resto del dashboard ve los datos nuevos.
       await mutate(() => true, undefined, { revalidate: true });
@@ -197,13 +202,13 @@ export function AuditPanel() {
       <PageHeader
         title="Auditoría"
         accent="de API"
-        description={`Panel para evaluadores: ejecuta los endpoints /api/test/* y revisa código HTTP, latencia y JSON.${USE_MOCKS ? " (modo mock activo)" : ""}`}
+        description={`Panel de verificación: consulta la API y revisa código HTTP, latencia y JSON. El reset solo modifica fixtures de prueba.${USE_MOCKS ? " (modo mock activo)" : ""}`}
       />
       <div className="grid gap-5">
         <EndpointCard
           id="analytics"
           method="GET"
-          path="/api/test/analytics"
+          path="/api/analytics"
           description="Métricas de ventas por día y categoría. Paginación en servidor con ?page=&limit=. SLA: < 300 ms."
           runner={analytics}
           onRun={() => {
@@ -211,7 +216,7 @@ export function AuditPanel() {
               toast.error("Parámetros inválidos", { description: pag.error.issues[0]?.message });
               return;
             }
-            void analytics.run("GET", "/api/test/analytics", pag.data);
+            void analytics.run("GET", "/api/analytics", pag.data);
           }}
           controls={
             <div className="grid grid-cols-2 gap-2">
@@ -239,8 +244,8 @@ export function AuditPanel() {
                   className="h-9 font-mono"
                 />
               </div>
-              <p className="col-span-2 truncate font-mono text-[11px] text-white/35" title={buildUrl("/api/test/analytics", { page, limit })}>
-                {buildUrl("/api/test/analytics", { page, limit })}
+              <p className="col-span-2 truncate font-mono text-[11px] text-white/35" title={buildUrl("/api/analytics", { page, limit })}>
+                {buildUrl("/api/analytics", { page, limit })}
               </p>
               {!pag.success && (
                 <p role="alert" className="col-span-2 text-xs text-danger">
@@ -253,17 +258,55 @@ export function AuditPanel() {
         <EndpointCard
           id="kanban-status"
           method="GET"
-          path="/api/test/kanban-status"
-          description="Estado actual de cada columna del tablero. Úsalo para verificar un movimiento Drag & Drop."
+          path="/api/orders?page=1&limit=50"
+          description="Órdenes persistidas en el backend; esta ruta alimenta el tablero de operación."
           runner={kanban}
-          onRun={() => void kanban.run("GET", "/api/test/kanban-status")}
+          onRun={() => void kanban.run("GET", "/api/orders", { page: 1, limit: 50 })}
+        />
+        <EndpointCard
+          id="health"
+          method="GET"
+          path="/api/health"
+          description="Comprueba disponibilidad de la API y conexión a la base de datos; Railway usa esta ruta para el healthcheck."
+          runner={health}
+          onRun={() => void health.run("GET", "/api/health")}
+        />
+        <EndpointCard
+          id="test-analytics"
+          method="GET"
+          path="/api/test/analytics?page=1&limit=50"
+          description="Consulta métricas de fixtures de evaluación. Disponible según la configuración del backend."
+          runner={testAnalytics}
+          onRun={() => void testAnalytics.run("GET", "/api/test/analytics", { page: 1, limit: 50 })}
+        />
+        <EndpointCard
+          id="test-kanban-status"
+          method="GET"
+          path="/api/test/kanban-status?orderNumber=…"
+          description="Consulta el tablero de fixtures; puedes filtrar por un número de orden de prueba."
+          runner={testKanban}
+          onRun={() => void testKanban.run("GET", "/api/test/kanban-status", { orderNumber: orderNumber.trim() })}
+          controls={
+            <div className="grid gap-1.5">
+              <Label htmlFor="audit-order-number" className="text-xs text-white/50">orderNumber</Label>
+              <Input id="audit-order-number" value={orderNumber} onChange={(event) => setOrderNumber(event.target.value)} className="h-9 font-mono" />
+            </div>
+          }
+        />
+        <EndpointCard
+          id="test-contract"
+          method="GET"
+          path="/api/test/contract"
+          description="Devuelve el manifiesto de rutas de soporte para pruebas y evaluación."
+          runner={contract}
+          onRun={() => void contract.run("GET", "/api/test/contract")}
         />
         <EndpointCard
           id="reset-data"
           method="POST"
           path="/api/test/reset-data"
           destructive
-          description="Restablece la base de datos a un conjunto de prueba conocido para E2E repetibles. Borra los cambios hechos en el tablero."
+          description="Restablece únicamente fixtures de prueba. La operación pasa por un proxy privado, exige sesión de administrador y TEST_API_TOKEN; producción también requiere ALLOW_TEST_DATA_RESET=true."
           runner={reset}
           onRun={() => setConfirmOpen(true)}
         />
@@ -282,7 +325,7 @@ export function AuditPanel() {
               <AlertTriangle className="size-5" /> Acción destructiva
             </DialogTitle>
             <DialogDescription>
-              Esto reemplaza todas las órdenes y métricas por el conjunto de prueba. No se puede deshacer. Escribe{" "}
+              Esto reemplaza las órdenes y métricas marcadas como fixtures de prueba. No se puede deshacer. Escribe{" "}
               <strong className="font-mono text-white">RESET</strong> para confirmar.
             </DialogDescription>
           </DialogHeader>

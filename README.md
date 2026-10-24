@@ -1,64 +1,75 @@
 # OmniMarket Operations Hub — Frontend
 
-Dashboard analítico de e-commerce con Kanban (Drag & Drop + mutación optimista), auditoría de API y autenticación OAuth (Google/GitHub). UI en español (es-MX), moneda MXN.
+Dashboard en español para operaciones de e-commerce: analítica, Kanban con arrastre y actualización optimista, auditoría de API y acceso OAuth con Google/GitHub. La sesión y los datos pertenecen al backend.
 
-**Stack:** Next.js 15 (App Router) · TypeScript strict · Tailwind CSS v4 · shadcn/ui · Aceternity UI · motion · dnd-kit · recharts · SWR · react-hook-form + Zod · Auth.js v5 · Vitest · Playwright.
+**Stack:** Next.js 15 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · dnd-kit · Recharts · SWR · React Hook Form · Zod · Vitest · Playwright.
 
-## Puesta en marcha
+## Desarrollo local
 
-```bash
-cp .env.example .env.local     # rellena AUTH_* ; NEXT_PUBLIC_USE_MOCKS=true para desarrollar sin backend
-npm install
-npm run dev
+Configura primero y arranca PostgreSQL y la API siguiendo el README de `OmniMarketBack`. Para OAuth local, registra estos callbacks en Google y GitHub:
+
+- `http://localhost:3000/api/auth/google/callback`
+- `http://localhost:3000/api/auth/github/callback`
+
+En `OmniMarketBack/.env`, configura `API_ORIGIN=http://localhost:3000`, `WEB_ORIGIN=http://localhost:3000` y las credenciales `GOOGLE_*` y `GITHUB_*`. Después, desde esta carpeta:
+
+```powershell
+Copy-Item .env.example .env.local
+npm.cmd install
+npm.cmd run dev
 ```
 
-| Script | Qué hace |
+`OMNIMARKET_API_URL` apunta al servicio backend (por defecto `http://localhost:3001`). Next.js reenvía OAuth por `/api/auth/*` y las llamadas de datos por `/backend/*`; las cookies quedan en el mismo origen del frontend. No configures `DATABASE_URL` aquí.
+
+| Script | Uso |
 |---|---|
 | `npm run dev` / `build` / `start` | Next.js |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Vitest (unitarias: formateadores, finanzas, Decimal, schemas Zod, agregaciones, Kanban) |
-| `npm run test:e2e` | Playwright (auth, crear orden, DnD + persistencia, rollback, bulk, 409) |
+| `npm test` | Unitarias: formatos, finanzas, schemas, analítica y Kanban |
+| `npm run test:e2e` | Playwright con backend mock local y autenticación de prueba aislada |
 
 ## Rutas
 
 | Ruta | Acceso | Contenido |
 |---|---|---|
-| `/` | pública | Landing: hero con Webcam Pixel Grid (+ fallback ambiental), stack, preview, features, bento, órdenes, auditoría, CTA |
-| `/login` | pública | Sólo “Continuar con Google / GitHub”. Toasts para `?error=` |
-| `/dashboard` | protegida | KPIs, barra segmentada por categoría, ingresos por día, últimas órdenes |
-| `/dashboard/analytics` | protegida | Filtros, gráficas y tabla paginada en servidor (`?page=&limit=`) con latencia |
-| `/dashboard/kanban` | protegida | 5 columnas `OrderStatus`, DnD, rollback, bulk atómico, crear orden |
-| `/dashboard/audit` | protegida | Prueba de `/api/test/*` con código HTTP, latencia y JSON |
+| `/` | Pública | Landing de producto |
+| `/login` | Pública | Acceso con Google o GitHub |
+| `/dashboard` | Sesión backend | Resumen de métricas y órdenes |
+| `/dashboard/analytics` | Sesión backend | Gráficas, filtros por fecha/categoría y tabla paginada |
+| `/dashboard/kanban` | Sesión backend | Cinco estados, arrastre, bulk y creación de órdenes |
+| `/dashboard/catalog` | Sesión backend | Productos y categorías; lectura para usuarios y gestión para administradores |
+| `/dashboard/orders/:id` | Sesión backend | Detalle, edición versionada de artículos y eliminación de una orden |
+| `/dashboard/audit` | Sesión backend | Respuestas y latencia de la API, rutas de soporte y reset solo para administradores |
 
-Protección doble: `middleware.ts` (sólo presencia de cookie, edge) + `auth()` en `app/dashboard/layout.tsx`.
+`middleware.ts` comprueba la presencia de `omni_session`; el layout consulta `GET /api/auth/session` al backend antes de renderizar el dashboard. OAuth, lectura y cierre de sesión usan la cookie HttpOnly del backend. Google y GitHub se configuran únicamente en el backend.
 
-## Capa de datos (`lib/api/`)
+## Contrato integrado
 
-- `schemas.ts`: contrato con Zod; **toda** respuesta se parsea en la frontera (`client.ts`). Los `Decimal` llegan como string y se convierten con `lib/decimal.ts`.
-- `transport.ts`: HTTP real o adaptador mock según `NEXT_PUBLIC_USE_MOCKS`.
-- `mock/`: backend simulado en el navegador (persistido en `localStorage`, versión optimista, 409, bulk atómico, botón “Simular fallo” para ver el rollback). **En producción debe ser `false`.**
+`lib/api/client.ts` valida las respuestas con Zod y adapta el contrato del backend a los modelos de pantalla.
 
-### Contrato asumido — a confirmar con backend
+| Operación | Contrato que usa el frontend |
+|---|---|
+| Analítica | `GET /api/analytics?page&limit&from&to&categoryId`; responde `summary`, `items` con `category` anidada y `pagination` |
+| Tablero | `GET /api/orders?page&limit`; el cliente consulta todas las páginas y agrupa órdenes por estado |
+| Catálogo | `GET /api/categories` y `GET /api/products`; la vista de administración cubre alta, edición, detalle y eliminación de productos/categorías |
+| Mover orden | `PATCH /api/orders/:id/status` con `{ status, position, expectedVersion }`; conflicto optimista HTTP 409 |
+| Crear orden | `POST /api/orders` con `{ customer: { name, email }, items }`; el backend crea en `PENDING` |
+| Detalle de orden | `GET /api/orders/:id`; edición de artículos con `PATCH /api/orders/:id` y `expectedVersion`; eliminación con `DELETE /api/orders/:id` |
+| Bulk | `PATCH /api/orders/bulk` con `{ ids, status }`; máximo 100 órdenes por transacción |
+| Auditoría | `GET /api/health`, `GET /api/test/analytics`, `GET /api/test/kanban-status` y `GET /api/test/contract` |
+| Reset de fixtures | `POST /api/test/reset-data`; el navegador lo invoca mediante una ruta servidor que comprueba origen, sesión ADMIN y `TEST_API_TOKEN` |
 
-| Endpoint | Request | Response |
-|---|---|---|
-| `GET /api/test/analytics` | `page`, `limit` (≤ 500) **+ opcionales `from`, `to` (YYYY-MM-DD), `categoryId`** | `{ data: [{ day, categoryId, categoryName, ordersCount, revenue, avgTicket, grossMargin }], meta: { total, page, pageSize, totalPages } }` |
-| `GET /api/test/kanban-status` | — | `{ columns: [{ status, count, cards: [{ id, orderNumber, customerName, total, margin, position, version, status, updatedAt? }] }] }` |
-| `POST /api/test/reset-data` | — | `{ ok: true, message }` |
-| `PATCH /api/orders/:id/move` | `{ toStatus, toPosition, version }` | tarjeta actualizada (con `version` nueva). `409` si `version` no coincide |
-| `POST /api/orders` | `{ customerName, customerEmail?, items: [{ productId, quantity }], status }` | tarjeta creada |
-| `POST /api/orders/bulk` | `{ ids, patch: { status } }` (transacción) | `{ updated }` |
+`NEXT_PUBLIC_USE_MOCKS=true` habilita el adaptador local para desarrollo visual y CI; en Railway debe ser `false`. Las mutaciones reales envían credenciales incluidas para la cookie HttpOnly. El token de reset es solo de servidor y no debe llevar prefijo `NEXT_PUBLIC_`.
 
-Puntos abiertos para backend:
-1. Filtros `from`/`to`/`categoryId` en `/api/test/analytics` y límite máximo (el front usa `limit=500` para las gráficas; ideal: un endpoint de resumen agregado).
-2. `margin` en la tarjeta = margen bruto **absoluto** (Decimal); el % lo calcula el front.
-3. `updatedAt` opcional en tarjetas (para el “hace 5 min”).
-4. `toPosition` = índice 0-based dentro de la columna destino; el backend reordena el resto.
-5. Formato de error: `{ error }` o `{ message }`.
-6. Catálogo de productos: hoy está en `lib/catalog.ts`; se necesita `GET /api/products`.
-7. Rol de usuario: hoy se asigna “Operador” en el callback JWT; debería venir de la BD.
+## Railway y CI/CD
 
-## CI/CD
+Conecta cada repositorio al servicio Railway correspondiente y deja que GitHub Actions valide lint, tipos, unitarias, build y E2E antes del despliegue. En el servicio frontend configura:
 
-`.github/workflows/ci.yml` ejecuta lint, typecheck, unitarias, build y E2E. En Railway activa **“Wait for CI”** para que un fallo bloquee el despliegue.
+- `OMNIMARKET_API_URL`: URL del backend accesible desde el servidor Next.js; usa la URL privada de Railway cuando esté disponible.
+- `NEXT_PUBLIC_USE_MOCKS=false`.
+- `TEST_API_TOKEN`: mismo valor privado que en backend, solo si se necesita habilitar el reset de fixtures.
+
+En backend, configura `API_ORIGIN` y `WEB_ORIGIN` con el origen público del frontend. Registra Google/GitHub con callback `https://<dominio-frontend>/api/auth/{google|github}/callback`, y permite ese origen en CORS mediante `WEB_ORIGIN` o `CORS_ALLOWED_ORIGINS`. En Railway activa **Wait for CI**.
+
+La configuración de variables no prueba que los proveedores OAuth, la base PostgreSQL o los servicios Railway estén provisionados; valida cada flujo en el entorno después de configurarlos.

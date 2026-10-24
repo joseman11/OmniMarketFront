@@ -7,6 +7,7 @@ import { ChevronRight, Menu, Plus, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { CommandPalette } from "@/components/dashboard/command-palette";
 import { SidebarContent } from "@/components/dashboard/sidebar";
+import { DashboardAccessProvider } from "@/components/dashboard/access-context";
 import type { ShellUser } from "@/components/dashboard/user-menu";
 import { titleFor } from "@/components/dashboard/nav";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
@@ -42,6 +43,7 @@ export function DashboardShell({ user, children }: { user: ShellUser; children: 
   const section = titleFor(pathname);
 
   return (
+    <DashboardAccessProvider isAdmin={user.isAdmin}>
     <div className="relative flex min-h-[100svh] bg-ink-2">
       <div aria-hidden="true" className="bg-grid pointer-events-none fixed inset-0 opacity-[0.35] [--grid-size:56px] [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
 
@@ -121,5 +123,6 @@ export function DashboardShell({ user, children }: { user: ShellUser; children: 
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
+    </DashboardAccessProvider>
   );
 }

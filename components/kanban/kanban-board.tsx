@@ -33,14 +33,13 @@ import { Button } from "@/components/ui/button";
 import { ApiError, api } from "@/lib/api/client";
 import { USE_MOCKS } from "@/lib/api/config";
 import { ORDER_STATUSES, type CreateOrderInput, type KanbanCard, type OrderStatus } from "@/lib/api/schemas";
-import { useKanbanBoard } from "@/lib/hooks/use-api";
+import { useKanbanBoard, useProducts } from "@/lib/hooks/use-api";
 import {
   findContainer,
   insertCard,
   isStatus,
   locate,
   moveCard,
-  patchCard,
   summarizeSelection,
   toBoardState,
   toKanbanBoard,
@@ -94,6 +93,7 @@ function MockFailureToggle() {
 
 export function KanbanBoard() {
   const { data, error, mutate, isValidating } = useKanbanBoard();
+  const productsQuery = useProducts();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -202,8 +202,7 @@ export function KanbanBoard() {
     pendingRef.current += 1;
     try {
       const res = await api.moveOrder(id, { toStatus, toPosition: toIndex, version: origin.version });
-      apply((b) => patchCard(b, id, { version: res.data.version, updatedAt: res.data.updatedAt, status: res.data.status }));
-      syncCache();
+      await reloadFromServer();
       toast.success(`${card?.orderNumber ?? "Orden"} → ${label}`, {
         description: `Guardado en ${Math.round(res.latencyMs)} ms`,
       });
@@ -319,7 +318,7 @@ export function KanbanBoard() {
   const createOrder = async (input: CreateOrderInput) => {
     try {
       const res = await api.createOrder(input);
-      apply((b) => insertCard(b, res.data, 0));
+      apply((b) => insertCard(b, res.data, res.data.position));
       syncCache();
       setCreateOpen(false);
       setHighlightId(res.data.id);
@@ -424,7 +423,13 @@ export function KanbanBoard() {
         onConfirm={() => void confirmBulk()}
         onOpenChange={(o) => !o && setBulkTarget(null)}
       />
-      <CreateOrderDialog open={createOpen} onOpenChange={setCreateOpen} onCreate={createOrder} />
+      <CreateOrderDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreate={createOrder}
+        products={productsQuery.data?.data.items ?? []}
+        productsLoading={!productsQuery.data && !productsQuery.error}
+      />
     </div>
   );
 }
