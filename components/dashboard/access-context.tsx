@@ -2,16 +2,16 @@
 
 import { createContext, useContext } from "react";
 
-const DashboardAccessContext = createContext({ isAdmin: false });
+const DashboardAccessContext = createContext({ canManageCatalog: false });
 
 export function DashboardAccessProvider({
-  isAdmin,
+  canManageCatalog,
   children,
 }: {
-  isAdmin: boolean;
+  canManageCatalog: boolean;
   children: React.ReactNode;
 }) {
-  return <DashboardAccessContext.Provider value={{ isAdmin }}>{children}</DashboardAccessContext.Provider>;
+  return <DashboardAccessContext.Provider value={{ canManageCatalog }}>{children}</DashboardAccessContext.Provider>;
 }
 
 export function useDashboardAccess() {

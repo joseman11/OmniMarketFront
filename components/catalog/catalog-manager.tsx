@@ -84,7 +84,7 @@ function TextField({
 }
 
 export function CatalogManager() {
-  const { isAdmin } = useDashboardAccess();
+  const { canManageCatalog } = useDashboardAccess();
   const { mutate: refreshGlobal } = useSWRConfig();
   const categoriesQuery = useCategories();
   const productsQuery = useProducts(true);
@@ -266,7 +266,7 @@ export function CatalogManager() {
             <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={pending}>
               <RefreshCw className="size-3.5" /> Actualizar
             </Button>
-            {isAdmin && (
+            {canManageCatalog && (
               <Button size="sm" onClick={() => tab === "products" ? void openProductForm() : openCategoryForm()}>
                 <Plus className="size-3.5" /> {tab === "products" ? "Nuevo producto" : "Nueva categoría"}
               </Button>
@@ -276,7 +276,7 @@ export function CatalogManager() {
       />
 
       <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
-        <Panel title="Catálogo" description={isAdmin ? "Gestión de inventario" : "Consulta de inventario"} className="h-fit">
+        <Panel title="Catálogo" description={canManageCatalog ? "Gestión de inventario" : "Consulta de inventario"} className="h-fit">
           <div className="grid gap-2" role="tablist" aria-label="Secciones del catálogo">
             <button
               type="button"
@@ -299,7 +299,7 @@ export function CatalogManager() {
               <span className="font-mono text-xs text-white/40">{categories.length}</span>
             </button>
           </div>
-          {!isAdmin && <p className="mt-4 text-xs leading-relaxed text-white/40">Solo las cuentas administradoras pueden modificar el catálogo.</p>}
+          {!canManageCatalog && <p className="mt-4 text-xs leading-relaxed text-white/40">Esta cuenta solo puede consultar el catálogo.</p>}
         </Panel>
 
         <Panel
@@ -333,8 +333,8 @@ export function CatalogManager() {
                       <td className="px-4 py-3"><span className={cn("rounded-full border px-2 py-1 text-[10px]", product.isActive ? "border-success/25 bg-success/10 text-success" : "border-white/10 bg-white/[0.03] text-white/40")}>{product.isActive ? "Activo" : "Inactivo"}</span></td>
                       <td className="px-5 py-3"><div className="flex justify-end gap-1">
                         <Button variant="ghost" size="sm" onClick={() => void showProduct(product.id)}>Ver</Button>
-                        {isAdmin && <Button variant="ghost" size="icon-sm" aria-label={`Editar ${product.name}`} onClick={() => void openProductForm(product)}><Pencil className="size-3.5" /></Button>}
-                        {isAdmin && <Button variant="ghost" size="icon-sm" aria-label={`Eliminar ${product.name}`} onClick={() => setDeleteTarget({ kind: "products", id: product.id, label: product.name })}><Trash2 className="size-3.5 text-danger" /></Button>}
+                        {canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Editar ${product.name}`} onClick={() => void openProductForm(product)}><Pencil className="size-3.5" /></Button>}
+                        {canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Eliminar ${product.name}`} onClick={() => setDeleteTarget({ kind: "products", id: product.id, label: product.name })}><Trash2 className="size-3.5 text-danger" /></Button>}
                       </div></td>
                     </tr>
                   ))}
@@ -349,7 +349,7 @@ export function CatalogManager() {
                 <tbody className="divide-y divide-white/[0.05]">
                   {filteredCategories.map((category) => {
                     const count = products.filter((product) => product.categoryId === category.id).length;
-                    return <tr key={category.id} className="transition hover:bg-white/[0.025]"><td className="px-5 py-3 font-medium text-white">{category.name}</td><td className="px-4 py-3 font-mono text-xs text-white/45">{category.slug}</td><td className="px-4 py-3 font-mono text-white/60">{count}</td><td className="px-5 py-3"><div className="flex justify-end gap-1">{isAdmin && <Button variant="ghost" size="icon-sm" aria-label={`Editar ${category.name}`} onClick={() => openCategoryForm(category)}><Pencil className="size-3.5" /></Button>}{isAdmin && <Button variant="ghost" size="icon-sm" aria-label={`Eliminar ${category.name}`} onClick={() => setDeleteTarget({ kind: "categories", id: category.id, label: category.name })}><Trash2 className="size-3.5 text-danger" /></Button>}</div></td></tr>;
+                    return <tr key={category.id} className="transition hover:bg-white/[0.025]"><td className="px-5 py-3 font-medium text-white">{category.name}</td><td className="px-4 py-3 font-mono text-xs text-white/45">{category.slug}</td><td className="px-4 py-3 font-mono text-white/60">{count}</td><td className="px-5 py-3"><div className="flex justify-end gap-1">{canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Editar ${category.name}`} onClick={() => openCategoryForm(category)}><Pencil className="size-3.5" /></Button>}{canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Eliminar ${category.name}`} onClick={() => setDeleteTarget({ kind: "categories", id: category.id, label: category.name })}><Trash2 className="size-3.5 text-danger" /></Button>}</div></td></tr>;
                   })}
                 </tbody>
               </table>
@@ -394,7 +394,7 @@ export function CatalogManager() {
         <DialogContent className="border-white/10 bg-[#0e0e15] sm:max-w-md">
           <DialogHeader><DialogTitle>Detalle del producto</DialogTitle><DialogDescription>Consulta directa del registro en el backend.</DialogDescription></DialogHeader>
           {detailLoading ? <Skeleton className="h-32 w-full" /> : productDetail ? <div className="grid grid-cols-2 gap-3 text-sm"><div className="text-white/40">Nombre</div><div className="text-right text-white">{productDetail.name}</div><div className="text-white/40">SKU</div><div className="text-right font-mono text-white">{productDetail.sku}</div><div className="text-white/40">Categoría</div><div className="text-right text-white">{productDetail.category.name}</div><div className="text-white/40">Precio</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.price)}</div><div className="text-white/40">Costo</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.cost)}</div><div className="text-white/40">Existencia</div><div className="text-right font-mono text-white">{productDetail.stock}</div></div> : null}
-          <DialogFooter>{isAdmin && productDetail && <Button variant="outline" onClick={() => { setDetailOpen(false); void openProductForm(productDetail); }}><Pencil className="size-3.5" /> Editar</Button>}<Button variant="ghost" onClick={() => setDetailOpen(false)}>Cerrar</Button></DialogFooter>
+          <DialogFooter>{canManageCatalog && productDetail && <Button variant="outline" onClick={() => { setDetailOpen(false); void openProductForm(productDetail); }}><Pencil className="size-3.5" /> Editar</Button>}<Button variant="ghost" onClick={() => setDetailOpen(false)}>Cerrar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

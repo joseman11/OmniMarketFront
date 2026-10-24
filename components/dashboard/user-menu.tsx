@@ -15,7 +15,7 @@ import {
 import { avatarDataUri } from "@/lib/avatar";
 import { cn } from "@/lib/utils";
 
-export type ShellUser = { name: string; email?: string | null; image?: string | null; role: string; isAdmin: boolean };
+export type ShellUser = { name: string; email?: string | null; image?: string | null; role: string; canManageCatalog: boolean };
 
 export function UserAvatar({ user, className }: { user: ShellUser; className?: string }) {
   return (
