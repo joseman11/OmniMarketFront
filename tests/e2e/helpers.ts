@@ -1,14 +1,14 @@
-import { expect, type Locator, type Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 export const AUTH_STATE = "tests/e2e/.auth/user.json";
 
-/** Restablece el set de datos conocido usando el endpoint de auditoría (vía UI). */
+/** Restablece el set de datos conocido del adaptador mock (se re-siembra al cargar). */
 export async function resetData(page: Page) {
-  await page.goto("/dashboard/audit");
-  await page.getByTestId("audit-run-reset-data").click();
-  await page.getByTestId("reset-confirm-input").fill("RESET");
-  await page.getByTestId("reset-confirm").click();
-  await expect(page.getByTestId("audit-status-reset-data")).toHaveText(/200/);
+  await page.goto("/dashboard/kanban");
+  await page.evaluate(() => {
+    window.localStorage.removeItem("omnimarket.mock.db.v1");
+    window.localStorage.removeItem("omnimarket.mock.controls.v1");
+  });
 }
 
 /** Arrastre con puntero real (dnd-kit necesita movimientos intermedios). */
@@ -22,4 +22,11 @@ export async function dragTo(page: Page, source: Locator, target: Locator) {
   await page.mouse.move(t.x + t.width / 2, t.y + 60, { steps: 18 });
   await page.waitForTimeout(150);
   await page.mouse.up();
+}
+
+/** Fuerza HTTP 500 en las mutaciones del adaptador mock (para probar el rollback). */
+export async function setMockFailure(page: Page, on: boolean) {
+  await page.evaluate((fail) => {
+    window.localStorage.setItem("omnimarket.mock.controls.v1", JSON.stringify({ failMutations: fail }));
+  }, on);
 }

@@ -1,24 +1,12 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import path from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { encode } from "next-auth/jwt";
+import { readE2ESecret } from "./secret";
 
 const COOKIE = "authjs.session-token";
 
-function readSecret(): string {
-  if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET;
-  try {
-    const env = readFileSync(path.join(process.cwd(), ".env.local"), "utf8");
-    const m = env.match(/^AUTH_SECRET=(.+)$/m);
-    if (m?.[1]) return m[1].trim();
-  } catch {
-    /* sin .env.local */
-  }
-  return "e2e-only-secret-not-for-production-000000";
-}
-
 export default async function globalSetup() {
   const token = await encode({
-    secret: readSecret(),
+    secret: readE2ESecret(),
     salt: COOKIE,
     token: { sub: "e2e-user", name: "E2E Evaluador", email: "e2e@omnimarket.mx", role: "Operador" },
     maxAge: 60 * 60,

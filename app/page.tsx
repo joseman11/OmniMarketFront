@@ -1,4 +1,3 @@
-import { AuditSection } from "@/components/landing/audit-section";
 import { DashboardPreview } from "@/components/landing/dashboard-preview";
 import { FeatureCards } from "@/components/landing/feature-cards";
 import { FinalCta, Footer } from "@/components/landing/final-cta";
@@ -17,7 +16,6 @@ export default function LandingPage() {
         <DashboardPreview />
         <FeatureCards />
         <FloatingOrders />
-        <AuditSection />
         <FinalCta />
       </main>
       <Footer />
