@@ -34,17 +34,15 @@ import { KanbanColumn } from "@/components/kanban/kanban-column";
 import { Button } from "@/components/ui/button";
 import { ApiError, api } from "@/lib/api/client";
 import { ORDER_STATUSES, type CreateOrderInput, type KanbanCard, type OrderStatus } from "@/lib/api/schemas";
-import { classifyWriteError, useKanbanController } from "@/components/kanban/use-kanban-controller";
+import { useKanbanController } from "@/components/kanban/use-kanban-controller";
 import { isAnalyticsKey, useProducts } from "@/lib/hooks/use-api";
 import {
   findContainer,
-  insertCard,
   isStatus,
   locate,
   moveCard,
   summarizeSelection,
   toBoardState,
-  toKanbanBoard,
   type BoardState,
 } from "@/lib/kanban";
 import { STATUS_META } from "@/lib/status";
@@ -320,22 +318,31 @@ export function KanbanBoard() {
   /* ─────────────── Crear ─────────────── */
 
   const createOrder = async (input: CreateOrderInput) => {
-    try {
-      const res = await api.createOrder(input);
-      void kanban.mutate((current) => current && toKanbanBoard(insertCard(toBoardState(current), res.data, res.data.position)), {
-        revalidate: false,
-      });
-      refreshAnalytics();
-      setCreateOpen(false);
-      setHighlightId(res.data.id);
-      window.setTimeout(() => setHighlightId(null), 2200);
-      toast.success(`Orden ${res.data.orderNumber} creada`, {
-        description: `${STATUS_META[res.data.status].label} · ${input.customerName}`,
-      });
-    } catch (e) {
-      toast.error("No se pudo crear la orden", { description: errMsg(e) });
-      throw e;
+    const outcome = await kanban.create(input);
+    if (outcome.blocked) {
+      toast.info("Hay una operación en curso en el tablero", { description: "Espera a que termine e inténtalo de nuevo." });
+      throw new Error("Escritura bloqueada");
     }
+    if (outcome.write !== "saved") {
+      if (outcome.write === "rejected") {
+        toast.error("No se pudo crear la orden", { description: errMsg(outcome.error) });
+      } else {
+        toast.error("No se pudo confirmar la creación de la orden", {
+          description: outcome.synchronized
+            ? `${errMsg(outcome.error)}. Revisa el tablero actualizado antes de reintentar: la orden pudo haberse creado.`
+            : `${errMsg(outcome.error)}. No sabemos si se creó; sincroniza el tablero antes de reintentar.`,
+        });
+      }
+      throw outcome.error;
+    }
+    const res = outcome.data;
+    refreshAnalytics();
+    setCreateOpen(false);
+    setHighlightId(res.data.id);
+    window.setTimeout(() => setHighlightId(null), 2200);
+    toast.success(`Orden ${res.data.orderNumber} creada`, {
+      description: `${STATUS_META[res.data.status].label} · ${input.customerName}`,
+    });
   };
 
   const activeCard = activeId ? cardById(activeId) : undefined;

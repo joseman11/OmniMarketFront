@@ -2,9 +2,9 @@
 
 import { useCallback, useRef, useState } from "react";
 import { ApiError, api, type ApiResult } from "@/lib/api/client";
-import type { KanbanBoard, KanbanCard, OrderStatus } from "@/lib/api/schemas";
+import type { CreateOrderInput, KanbanBoard, KanbanCard, OrderStatus } from "@/lib/api/schemas";
 import { useKanbanBoard } from "@/lib/hooks/use-api";
-import { emptyBoard, moveCard, patchCard, toBoardState, toKanbanBoard } from "@/lib/kanban";
+import { emptyBoard, insertCard, moveCard, patchCard, toBoardState, toKanbanBoard } from "@/lib/kanban";
 
 /**
  * idle        → sin escrituras; se permiten move/create/bulk y la revalidación automática.
@@ -105,6 +105,36 @@ export function useKanbanController() {
     [mutate, setPhase, synchronize],
   );
 
+  /**
+   * Alta de orden. Nunca se reintenta el POST automáticamente (no hay idempotencia en
+   * backend): ante 5xx/red se sincroniza para que el usuario vea si la orden existe.
+   */
+  const create = useCallback(
+    async (input: CreateOrderInput): Promise<WriteOutcome<ApiResult<KanbanCard>>> => {
+      if (phaseRef.current !== "idle") return { blocked: true };
+      setPhase("saving");
+      let result: ApiResult<KanbanCard>;
+      try {
+        result = await api.createOrder(input);
+      } catch (error) {
+        const write = classifyWriteError(error);
+        if (write === "rejected") {
+          setPhase("idle");
+          return { blocked: false, write, error, synchronized: true };
+        }
+        const syncError = await synchronize();
+        return { blocked: false, write, error, synchronized: syncError === null, syncError: syncError ?? undefined };
+      }
+      // La respuesta del POST es autoritativa para la tarjeta nueva.
+      await mutate((current) => current && toKanbanBoard(insertCard(toBoardState(current), result.data, result.data.position)), {
+        revalidate: false,
+      });
+      setPhase("idle");
+      return { blocked: false, write: "saved", data: result, synchronized: true };
+    },
+    [mutate, setPhase, synchronize],
+  );
+
   /** Recarga manual o reintento tras needs-sync: sólo lectura, nunca repite escrituras. */
   const reload = useCallback(async () => {
     if (phaseRef.current === "saving" || phaseRef.current === "refreshing") return null;
@@ -118,9 +148,8 @@ export function useKanbanController() {
     phase,
     phaseRef,
     draggingRef,
-    /** Transitorio: create/bulk todavía escriben fuera del coordinador. */
-    mutate,
     move,
+    create,
     reload,
   };
 }
