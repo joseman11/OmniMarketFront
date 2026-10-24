@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Save, Trash2, X } from "lucide-react";
+import { ArrowLeft, Plus, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { ErrorState, PageHeader, Panel } from "@/components/dashboard/panel";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,12 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, api } from "@/lib/api/client";
 import { isAnalyticsKey, useProducts } from "@/lib/hooks/use-api";
-import type { ApiProduct, BackendOrderDetail, UpdateOrderItemsInput } from "@/lib/api/schemas";
+import { useOrderDraft, type OrderDraftLine } from "@/lib/hooks/use-order-draft";
+import type { ApiProduct, BackendOrderDetail } from "@/lib/api/schemas";
 import { formatCurrency, formatPercent, formatRelativeTime } from "@/lib/format";
 import { marginRatio } from "@/lib/finance";
 import { STATUS_META } from "@/lib/status";
-
-type OrderLineDraft = { productId: string; quantity: number };
 
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "Ocurrió un error inesperado.";
@@ -32,14 +31,16 @@ function OrderLineEditor({
   onChange,
   onRemove,
   canRemove,
+  disabled,
 }: {
-  line: OrderLineDraft;
+  line: OrderDraftLine;
   index: number;
   order: BackendOrderDetail;
   products: ApiProduct[];
-  onChange: (next: OrderLineDraft) => void;
+  onChange: (next: OrderDraftLine) => void;
   onRemove: () => void;
   canRemove: boolean;
+  disabled: boolean;
 }) {
   const existingLine = order.items.find((item) => item.productId === line.productId);
   const selectedProductIsInactive = line.productId === existingLine?.productId && !products.some((item) => item.id === line.productId && item.isActive);
@@ -49,6 +50,7 @@ function OrderLineEditor({
         Producto
         <select
           value={line.productId}
+          disabled={disabled}
           onChange={(event) => onChange({ ...line, productId: event.target.value })}
           className="h-9 min-w-0 rounded-lg border border-white/10 bg-[#15151e] px-2 text-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-brand"
         >
@@ -58,9 +60,9 @@ function OrderLineEditor({
       </label>
       <label className="grid gap-1.5 text-xs text-white/45">
         Cantidad
-        <Input type="number" inputMode="numeric" min={1} max={99} value={line.quantity} onChange={(event) => onChange({ ...line, quantity: Number(event.target.value) })} />
+        <Input type="number" inputMode="numeric" min={1} max={99} value={line.quantity} disabled={disabled} onChange={(event) => onChange({ ...line, quantity: Number(event.target.value) })} />
       </label>
-      <Button type="button" variant="ghost" size="icon-sm" className="mt-5" disabled={!canRemove} aria-label={`Quitar artículo ${index + 1}`} onClick={onRemove}><X className="size-4" /></Button>
+      <Button type="button" variant="ghost" size="icon-sm" className="mt-5" disabled={disabled || !canRemove} aria-label={`Quitar artículo ${index + 1}`} onClick={onRemove}><X className="size-4" /></Button>
     </div>
   );
 }
@@ -71,49 +73,54 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   const productsQuery = useProducts(true);
   const products = productsQuery.data?.data.items ?? [];
   const { mutate: mutateGlobal } = useSWRConfig();
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<OrderLineDraft[]>([]);
-  const [saving, setSaving] = useState(false);
+  const { draft, saving, begin, editLines, addLine, cancel, save } = useOrderDraft();
+  const [reloading, setReloading] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const order = data?.data.item;
-
-  useEffect(() => {
-    if (order && !editing) setDraft(order.items.map((item) => ({ productId: item.productId, quantity: item.quantity })));
-  }, [order, editing]);
+  // El borrador pertenece a esta orden; las revalidaciones de `order` no lo tocan.
+  const editing = draft !== null && draft.orderId === order?.id;
+  const lines = editing ? draft.lines : [];
+  const conflict = editing && draft.conflict;
 
   const beginEdit = () => {
-    if (!order) return;
-    setDraft(order.items.map((item) => ({ productId: item.productId, quantity: item.quantity })));
-    setEditing(true);
+    if (order) begin(order);
   };
 
-  const cancelEdit = () => {
-    if (order) setDraft(order.items.map((item) => ({ productId: item.productId, quantity: item.quantity })));
-    setEditing(false);
+  /** Decisión explícita tras un 409: descarga la orden y reabre el borrador con su versión. */
+  const reloadAfterConflict = async () => {
+    setReloading(true);
+    try {
+      const fresh = await api.getOrder(orderId);
+      await mutate(fresh, { revalidate: false });
+      begin(fresh.data.item);
+      toast.info("Orden recargada", { description: `Editando sobre la versión ${fresh.data.item.version}.` });
+    } catch (reloadError) {
+      toast.error("No se pudo recargar la orden", { description: messageFrom(reloadError) });
+    } finally {
+      setReloading(false);
+    }
   };
 
   const saveItems = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!order || draft.length === 0 || draft.some((line) => !line.productId || !Number.isInteger(line.quantity) || line.quantity < 1 || line.quantity > 99)) {
+    if (!editing || saving || conflict) return;
+    if (lines.length === 0 || lines.some((line) => !line.productId || !Number.isInteger(line.quantity) || line.quantity < 1 || line.quantity > 99)) {
       toast.error("Revisa los artículos", { description: "Cada artículo necesita un producto activo y una cantidad entre 1 y 99." });
       return;
     }
-    const input: UpdateOrderItemsInput = {
-      expectedVersion: order.version,
-      items: draft.map((line) => ({ productId: line.productId, quantity: line.quantity })),
-    };
-    setSaving(true);
     try {
-      await api.updateOrderItems(order.id, input);
-      setEditing(false);
-      await Promise.all([mutate(), mutateGlobal("kanban-board"), mutateGlobal(isAnalyticsKey)]);
+      const result = await save();
+      if (!result) return;
+      // Se publica la respuesta autoritativa; las otras vistas se sincronizan aparte.
+      await mutate(result, { revalidate: false });
       toast.success("Artículos de la orden actualizados", { description: "El total y margen se recalcularon con los precios actuales." });
+      void Promise.all([mutateGlobal("kanban-board"), mutateGlobal(isAnalyticsKey)]);
     } catch (saveError) {
-      if (saveError instanceof ApiError && saveError.isConflict) await mutate();
-      toast.error("No se pudo actualizar la orden", { description: messageFrom(saveError) });
-    } finally {
-      setSaving(false);
+      const description = saveError instanceof ApiError && saveError.isConflict
+        ? "La orden cambió en otra sesión. Recarga la orden para editar sobre la versión actual."
+        : messageFrom(saveError);
+      toast.error("No se pudo actualizar la orden", { description });
     }
   };
 
@@ -138,7 +145,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
 
   const status = STATUS_META[order.status];
   const productsById = new Map(products.map((product) => [product.id, product]));
-  const estimate = draft.reduce((sum, line) => sum + (productsById.get(line.productId)?.price ?? order.items.find((item) => item.productId === line.productId)?.unitPrice ?? 0) * line.quantity, 0);
+  const estimate = lines.reduce((sum, line) => sum + (productsById.get(line.productId)?.price ?? order.items.find((item) => item.productId === line.productId)?.unitPrice ?? 0) * line.quantity, 0);
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -154,12 +161,18 @@ export function OrderDetail({ orderId }: { orderId: string }) {
           <Panel title="Artículos" description={editing ? "Los importes se recalculan con los precios actuales del catálogo." : `${order.items.length} líneas de producto`}>
             {editing ? (
               <form onSubmit={saveItems} className="grid gap-3">
-                {draft.map((line, index) => <OrderLineEditor key={`${order.id}-${index}`} line={line} index={index} order={order} products={products} canRemove={draft.length > 1} onChange={(next) => setDraft((current) => current.map((item, itemIndex) => itemIndex === index ? next : item))} onRemove={() => setDraft((current) => current.filter((_, itemIndex) => itemIndex !== index))} />)}
+                {conflict && (
+                  <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-white/80">
+                    <span>La orden cambió en otra sesión desde la versión {draft.baseVersion}. Recarga para editar sobre la versión actual; los cambios sin guardar se descartarán.</span>
+                    <Button type="button" size="sm" variant="outline" disabled={reloading} onClick={() => void reloadAfterConflict()}><RefreshCw className="size-3.5" />{reloading ? "Recargando…" : "Recargar orden"}</Button>
+                  </div>
+                )}
+                {lines.map((line, index) => <OrderLineEditor key={line.clientId} line={line} index={index} order={order} products={products} disabled={saving || conflict} canRemove={lines.length > 1} onChange={(next) => editLines((current) => current.map((item) => item.clientId === line.clientId ? next : item))} onRemove={() => editLines((current) => current.filter((item) => item.clientId !== line.clientId))} />)}
                 {productsQuery.error && <p role="alert" className="text-xs text-danger">No se pudo cargar el catálogo: {messageFrom(productsQuery.error)}</p>}
-                <Button type="button" variant="outline" size="sm" className="w-fit" disabled={draft.length >= 100 || products.filter((product) => product.isActive).length === 0} onClick={() => setDraft((current) => [...current, { productId: products.find((product) => product.isActive)?.id ?? "", quantity: 1 }])}><Plus className="size-3.5" /> Agregar producto</Button>
+                <Button type="button" variant="outline" size="sm" className="w-fit" disabled={saving || conflict || lines.length >= 100 || products.filter((product) => product.isActive).length === 0} onClick={() => addLine(products.find((product) => product.isActive)?.id ?? "")}><Plus className="size-3.5" /> Agregar producto</Button>
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
                   <span className="text-sm text-white/45">Total estimado <strong className="ml-2 font-mono text-white">{formatCurrency(estimate)}</strong></span>
-                  <div className="flex gap-2"><Button type="button" variant="ghost" onClick={cancelEdit} disabled={saving}>Cancelar</Button><Button type="submit" disabled={saving || productsQuery.isLoading}><Save className="size-3.5" />{saving ? "Guardando…" : "Guardar artículos"}</Button></div>
+                  <div className="flex gap-2"><Button type="button" variant="ghost" onClick={cancel} disabled={saving}>Cancelar</Button><Button type="submit" disabled={saving || conflict || productsQuery.isLoading}><Save className="size-3.5" />{saving ? "Guardando…" : "Guardar artículos"}</Button></div>
                 </div>
               </form>
             ) : (

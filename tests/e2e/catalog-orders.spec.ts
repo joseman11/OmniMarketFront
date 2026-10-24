@@ -72,4 +72,30 @@ test.describe("Catálogo y detalle de órdenes", () => {
     await expect(page).toHaveURL(/\/dashboard\/kanban$/);
     await expect(page.getByTestId("kanban-card-OM-1041")).toHaveCount(0);
   });
+
+  test("un 409 en el editor de artículos bloquea el reintento hasta recargar", async ({ page, context }) => {
+    await page.goto("/dashboard/kanban");
+    await page.getByRole("link", { name: "Ver detalle de OM-1041" }).click();
+    await expect(page).toHaveURL(/\/dashboard\/orders\//);
+    await page.getByRole("button", { name: "Editar artículos" }).click();
+
+    // Otra sesión guarda primero (v1 → v2).
+    const other = await context.newPage();
+    await other.goto(page.url());
+    await other.getByRole("button", { name: "Editar artículos" }).click();
+    await other.getByRole("button", { name: "Guardar artículos" }).click();
+    await expect(other.getByText("Artículos de la orden actualizados")).toBeVisible();
+    await other.close();
+
+    // Aunque la caché se revalide a v2, el borrador conserva su versión base (v1).
+    await page.bringToFront();
+    await page.getByRole("button", { name: "Guardar artículos" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "cambió en otra sesión" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Guardar artículos" })).toBeDisabled();
+
+    await page.getByRole("button", { name: "Recargar orden" }).click();
+    await expect(page.getByRole("button", { name: "Guardar artículos" })).toBeEnabled();
+    await page.getByRole("button", { name: "Guardar artículos" }).click();
+    await expect(page.getByText("Artículos de la orden actualizados")).toBeVisible();
+  });
 });
