@@ -23,7 +23,7 @@ export function useReturnFocus(
     if (preferFallback) preferFallback.current = false;
     const active = document.activeElement;
     returnTo.current = active instanceof HTMLElement && active !== document.body ? active : null;
-  }, [open]);
+  }, [open, preferFallback]);
 
   return useCallback(
     (event: Event) => {
