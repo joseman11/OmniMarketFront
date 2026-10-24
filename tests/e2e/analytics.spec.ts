@@ -22,7 +22,8 @@ test.describe("Analítica", () => {
 
   test("detecta un rango de fechas invertido y ofrece el error de validación", async ({ page }) => {
     await page.goto("/dashboard/analytics?from=2026-10-20&to=2026-10-01");
-    await expect(page.getByRole("alert")).toContainText("La fecha inicial debe ser anterior a la final");
+    // Next monta su propio anunciador de rutas con role="alert": se filtra por el mensaje.
+    await expect(page.getByRole("alert").filter({ hasText: "La fecha inicial debe ser anterior a la final" })).toBeVisible();
   });
 });
 
