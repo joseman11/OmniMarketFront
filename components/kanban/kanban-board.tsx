@@ -21,6 +21,7 @@ import { motion } from "motion/react";
 import { Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useSWRConfig } from "swr";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/dashboard/panel";
 import { KanbanBoardSkeleton } from "@/components/dashboard/skeletons";
@@ -33,7 +34,7 @@ import { KanbanColumn } from "@/components/kanban/kanban-column";
 import { Button } from "@/components/ui/button";
 import { ApiError, api } from "@/lib/api/client";
 import { ORDER_STATUSES, type CreateOrderInput, type KanbanCard, type OrderStatus } from "@/lib/api/schemas";
-import { useKanbanBoard, useProducts } from "@/lib/hooks/use-api";
+import { isAnalyticsKey, useKanbanBoard, useProducts } from "@/lib/hooks/use-api";
 import {
   findContainer,
   insertCard,
@@ -60,6 +61,7 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Error desconoc
 
 export function KanbanBoard() {
   const { data, error, mutate, isValidating } = useKanbanBoard();
+  const { mutate: mutateGlobal } = useSWRConfig();
   const productsQuery = useProducts();
   const router = useRouter();
   const pathname = usePathname();
@@ -139,6 +141,9 @@ export function KanbanBoard() {
     if (fresh) replace(toBoardState(fresh));
   }, [mutate, replace]);
 
+  /** Los cambios de pedidos recalculan métricas en el backend: invalida KPIs y gráficas cacheadas. */
+  const refreshAnalytics = useCallback(() => void mutateGlobal(isAnalyticsKey), [mutateGlobal]);
+
   /* ─────────────── Drag & Drop ─────────────── */
 
   const onDragStart = ({ active, activatorEvent }: DragStartEvent) => {
@@ -181,6 +186,7 @@ export function KanbanBoard() {
     try {
       const res = await api.moveOrder(id, { toStatus, toPosition: toIndex, version: origin.version });
       await reloadFromServer();
+      refreshAnalytics();
       toast.success(`${card?.orderNumber ?? "Orden"} → ${label}`, {
         description: `Guardado en ${Math.round(res.latencyMs)} ms`,
       });
@@ -279,6 +285,7 @@ export function KanbanBoard() {
     try {
       const res = await api.bulkUpdate({ ids, patch: { status: bulkTarget } });
       await reloadFromServer();
+      refreshAnalytics();
       setSelected(new Set());
       setBulkTarget(null);
       toast.success(`${res.data.updated} órdenes actualizadas`, { description: `Nuevo estado: ${label}` });
@@ -298,6 +305,7 @@ export function KanbanBoard() {
       const res = await api.createOrder(input);
       apply((b) => insertCard(b, res.data, res.data.position));
       syncCache();
+      refreshAnalytics();
       setCreateOpen(false);
       setHighlightId(res.data.id);
       window.setTimeout(() => setHighlightId(null), 2200);

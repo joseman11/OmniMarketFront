@@ -18,6 +18,10 @@ export function useAnalyticsSeries(filters: AnalyticsFilters = {}) {
   );
 }
 
+/** Cualquier cambio de pedidos recalcula las métricas: usar con `mutate` global para refrescar KPIs y gráficas. */
+export const isAnalyticsKey = (key: unknown) =>
+  Array.isArray(key) && (key[0] === "analytics" || key[0] === "analytics-series");
+
 export function useKanbanBoard() {
   return useSWR("kanban-board", () => api.getKanbanStatus().then((r) => r.data), {
     revalidateOnFocus: true,
