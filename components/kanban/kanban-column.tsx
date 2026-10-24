@@ -19,6 +19,7 @@ export function KanbanColumn({
   shakingId,
   highlightId,
   layoutEnabled,
+  dragDisabled = false,
 }: {
   status: OrderStatus;
   cards: KanbanCard[];
@@ -28,6 +29,8 @@ export function KanbanColumn({
   shakingId: string | null;
   highlightId: string | null;
   layoutEnabled: boolean;
+  /** true mientras el coordinador del tablero tiene una escritura pendiente o sin sincronizar. */
+  dragDisabled?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status, data: { type: "column" } });
   const meta = STATUS_META[status];
@@ -76,6 +79,7 @@ export function KanbanColumn({
               shaking={shakingId === card.id}
               highlight={highlightId === card.id}
               layoutEnabled={layoutEnabled}
+              dragDisabled={dragDisabled}
             />
           ))}
           {cards.length === 0 && (

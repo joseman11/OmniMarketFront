@@ -94,6 +94,7 @@ export function SortableKanbanCard({
   shaking,
   highlight,
   layoutEnabled,
+  dragDisabled = false,
 }: {
   card: Card;
   selected: boolean;
@@ -101,11 +102,13 @@ export function SortableKanbanCard({
   shaking: boolean;
   highlight: boolean;
   layoutEnabled: boolean;
+  dragDisabled?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
     data: { type: "card", status: card.status },
     attributes: { roleDescription: "tarjeta arrastrable" },
+    disabled: dragDisabled,
   });
 
   return (

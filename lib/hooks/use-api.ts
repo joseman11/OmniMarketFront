@@ -1,6 +1,6 @@
 "use client";
 
-import useSWR from "swr";
+import useSWR, { type SWRConfiguration } from "swr";
 import { api } from "@/lib/api/client";
 import type { AnalyticsFilters } from "@/lib/api/schemas";
 
@@ -22,9 +22,10 @@ export function useAnalyticsSeries(filters: AnalyticsFilters = {}) {
 export const isAnalyticsKey = (key: unknown) =>
   Array.isArray(key) && (key[0] === "analytics" || key[0] === "analytics-series");
 
-export function useKanbanBoard() {
+export function useKanbanBoard(config?: Pick<SWRConfiguration, "isPaused">) {
   return useSWR("kanban-board", () => api.getKanbanStatus().then((r) => r.data), {
     revalidateOnFocus: true,
+    ...config,
   });
 }
 

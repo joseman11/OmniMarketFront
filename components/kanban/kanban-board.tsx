@@ -34,7 +34,8 @@ import { KanbanColumn } from "@/components/kanban/kanban-column";
 import { Button } from "@/components/ui/button";
 import { ApiError, api } from "@/lib/api/client";
 import { ORDER_STATUSES, type CreateOrderInput, type KanbanCard, type OrderStatus } from "@/lib/api/schemas";
-import { isAnalyticsKey, useKanbanBoard, useProducts } from "@/lib/hooks/use-api";
+import { classifyWriteError, useKanbanController } from "@/components/kanban/use-kanban-controller";
+import { isAnalyticsKey, useProducts } from "@/lib/hooks/use-api";
 import {
   findContainer,
   insertCard,
@@ -55,22 +56,31 @@ const collisionDetection: CollisionDetection = (args) => {
   return hits.length > 0 ? hits : closestCorners(args);
 };
 
-type Origin = { status: OrderStatus; index: number; version: number; snapshot: BoardState };
+/** Tarjeta agarrada tal como estaba en el estado confirmado al empezar el arrastre. */
+type Origin = { status: OrderStatus; index: number; card: KanbanCard };
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Error desconocido");
 
 export function KanbanBoard() {
-  const { data, error, mutate, isValidating } = useKanbanBoard();
+  const kanban = useKanbanController();
+  const { data, error, isValidating, phase } = kanban;
   const { mutate: mutateGlobal } = useSWRConfig();
   const productsQuery = useProducts();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
 
-  const [board, setBoard] = useState<BoardState | null>(null);
-  const boardRef = useRef<BoardState | null>(null);
-  const pendingRef = useRef(0);
+  /** Estado confirmado: siempre derivado de la caché SWR. */
+  const confirmed = useMemo(() => (data ? toBoardState(data) : null), [data]);
+  /** Preview efímero del arrastre en curso; cancelar sólo lo descarta. */
+  const [preview, setPreview] = useState<BoardState | null>(null);
+  const previewRef = useRef<BoardState | null>(null);
   const originRef = useRef<Origin | null>(null);
+  const board = preview ?? confirmed;
+  const boardRef = useRef<BoardState | null>(board);
+  useEffect(() => {
+    boardRef.current = board;
+  }, [board]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   /** Punto de agarre dentro de la tarjeta (para que la inclinación no lo desplace). */
@@ -81,23 +91,20 @@ export function KanbanBoard() {
   const [bulkTarget, setBulkTarget] = useState<OrderStatus | null>(null);
   const [bulkPending, setBulkPending] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  /** Escrituras bloqueadas mientras otra está pendiente o el tablero no está sincronizado. */
+  const writesLocked = phase !== "idle";
 
-  /** Toda escritura al tablero pasa por aquí para que boardRef siempre esté al día. */
-  const apply = useCallback((fn: (b: BoardState) => BoardState) => {
-    if (!boardRef.current) return;
-    const next = fn(boardRef.current);
-    boardRef.current = next;
-    setBoard(next);
+  const updatePreview = useCallback((fn: (b: BoardState) => BoardState) => {
+    if (!previewRef.current) return;
+    const next = fn(previewRef.current);
+    previewRef.current = next;
+    setPreview(next);
   }, []);
-  const replace = useCallback((next: BoardState) => {
-    boardRef.current = next;
-    setBoard(next);
-  }, []);
-
-  // Hidratación desde el servidor (persistencia): sólo si no hay mutaciones ni arrastre en curso.
-  useEffect(() => {
-    if (data && pendingRef.current === 0 && !originRef.current) replace(toBoardState(data));
-  }, [data, replace]);
+  const clearPreview = useCallback(() => {
+    previewRef.current = null;
+    setPreview(null);
+    kanban.draggingRef.current = false;
+  }, [kanban.draggingRef]);
 
   // ?new=1 (desde topbar o ⌘K) abre el diálogo de creación.
   useEffect(() => {
@@ -122,7 +129,7 @@ export function KanbanBoard() {
   );
 
   const cardById = useCallback((id: string): KanbanCard | undefined => {
-    const b = boardRef.current;
+    const b = previewRef.current ?? boardRef.current;
     const loc = b && locate(b, id);
     return loc ? b![loc.status][loc.index] : undefined;
   }, []);
@@ -132,14 +139,7 @@ export function KanbanBoard() {
     window.setTimeout(() => setShakingId((s) => (s === id ? null : s)), 650);
   };
 
-  const syncCache = useCallback(() => {
-    if (boardRef.current) void mutate(toKanbanBoard(boardRef.current), { revalidate: false });
-  }, [mutate]);
-
-  const reloadFromServer = useCallback(async () => {
-    const fresh = await mutate();
-    if (fresh) replace(toBoardState(fresh));
-  }, [mutate, replace]);
+  const reloadFromServer = useCallback(() => kanban.reload(), [kanban]);
 
   /** Los cambios de pedidos recalculan métricas en el backend: invalida KPIs y gráficas cacheadas. */
   const refreshAnalytics = useCallback(() => void mutateGlobal(isAnalyticsKey), [mutateGlobal]);
@@ -147,11 +147,14 @@ export function KanbanBoard() {
   /* ─────────────── Drag & Drop ─────────────── */
 
   const onDragStart = ({ active, activatorEvent }: DragStartEvent) => {
-    const b = boardRef.current;
+    const b = confirmed;
     const id = String(active.id);
     const loc = b && locate(b, id);
-    if (!b || !loc) return;
-    originRef.current = { ...loc, version: b[loc.status][loc.index]!.version, snapshot: b };
+    if (!b || !loc || kanban.phaseRef.current !== "idle") return;
+    kanban.draggingRef.current = true;
+    originRef.current = { ...loc, card: b[loc.status][loc.index]! };
+    previewRef.current = b;
+    setPreview(b);
     // active.rect aún no está medido en onDragStart: se mide el nodo de la tarjeta agarrada.
     const ev = activatorEvent as PointerEvent | MouseEvent | KeyboardEvent;
     const node = ev.target instanceof Element ? ev.target.closest("[data-version]") : null;
@@ -165,7 +168,7 @@ export function KanbanBoard() {
   };
 
   const onDragOver = ({ active, over }: DragOverEvent) => {
-    const b = boardRef.current;
+    const b = previewRef.current;
     if (!b || !over) return;
     const id = String(active.id);
     const overId = String(over.id);
@@ -176,36 +179,51 @@ export function KanbanBoard() {
     const translated = active.rect.current.translated;
     const below = translated && over.rect ? translated.top > over.rect.top + over.rect.height / 2 : false;
     const index = overIndex >= 0 ? overIndex + (below ? 1 : 0) : b[to].length;
-    apply((cur) => moveCard(cur, id, to, index));
+    updatePreview((cur) => moveCard(cur, id, to, index));
   };
 
-  const commitMove = async (id: string, origin: Origin, toStatus: OrderStatus, toIndex: number) => {
-    const card = cardById(id);
+  const commitMove = async (card: KanbanCard, toStatus: OrderStatus, toIndex: number) => {
     const label = STATUS_META[toStatus].label;
-    pendingRef.current += 1;
-    try {
-      const res = await api.moveOrder(id, { toStatus, toPosition: toIndex, version: origin.version });
-      await reloadFromServer();
+    const outcome = await kanban.move(card, toStatus, toIndex);
+    if (outcome.blocked) {
+      toast.info("Hay una operación en curso", { description: "Espera a que termine antes de mover otra orden." });
+      return;
+    }
+    if (outcome.write === "saved") {
       refreshAnalytics();
-      toast.success(`${card?.orderNumber ?? "Orden"} → ${label}`, {
-        description: `Guardado en ${Math.round(res.latencyMs)} ms`,
-      });
-    } catch (e) {
-      if (e instanceof ApiError && e.isConflict) {
-        toast.warning("Conflicto de versión (409)", {
-          description: "La orden fue modificada en otra sesión. Recargamos el tablero con el estado actual.",
+      if (outcome.synchronized) {
+        toast.success(`${card.orderNumber} → ${label}`, {
+          description: `Guardado en ${Math.round(outcome.data.latencyMs)} ms`,
         });
-        await reloadFromServer();
-        return;
+      } else {
+        toast.warning(`${card.orderNumber} → ${label}`, {
+          description: "Guardado; sincronización pendiente. El tablero conserva el cambio confirmado.",
+        });
       }
-      // Rollback de ESTA tarjeta a su lugar original (no pisa otros cambios en curso).
-      apply((b) => moveCard(b, id, origin.status, origin.index));
-      shake(id);
-      toast.error(`No se pudo mover ${card?.orderNumber ?? "la orden"}`, {
-        description: `${errMsg(e)}. El cambio se revirtió.`,
+      return;
+    }
+    if (outcome.error instanceof ApiError && outcome.error.isConflict) {
+      toast.warning("Conflicto de versión (409)", {
+        description: outcome.synchronized
+          ? "La orden fue modificada en otra sesión. Recargamos el tablero con el estado actual."
+          : "La orden fue modificada en otra sesión. No se pudo recargar el tablero; sincronización pendiente.",
       });
-    } finally {
-      pendingRef.current -= 1;
+      return;
+    }
+    shake(card.id);
+    if (outcome.write === "rejected") {
+      toast.error(`No se pudo mover ${card.orderNumber}`, {
+        description: `${errMsg(outcome.error)}. La orden se mantuvo en su lugar.`,
+      });
+    } else if (outcome.synchronized) {
+      // 5xx/red: no se afirma un rollback del servidor; se muestra lo que el servidor reporta.
+      toast.error(`No se pudo mover ${card.orderNumber}`, {
+        description: `${errMsg(outcome.error)}. El tablero muestra el estado actual del servidor.`,
+      });
+    } else {
+      toast.error(`No se pudo confirmar el movimiento de ${card.orderNumber}`, {
+        description: `${errMsg(outcome.error)}. No sabemos si se aplicó; sincroniza el tablero antes de continuar.`,
+      });
     }
   };
 
@@ -213,30 +231,31 @@ export function KanbanBoard() {
     const origin = originRef.current;
     originRef.current = null;
     setActiveId(null);
-    const b = boardRef.current;
+    const b = previewRef.current;
     const id = String(active.id);
-    if (!origin || !b) return;
-    if (!over) {
-      replace(origin.snapshot);
+    if (!origin || !b || !over) {
+      clearPreview();
       return;
     }
+    let final = b;
     const container = findContainer(b, id);
-    if (!container) return;
     const overId = String(over.id);
-    if (findContainer(b, overId) === container && !isStatus(overId)) {
+    if (container && findContainer(b, overId) === container && !isStatus(overId)) {
       const oldIndex = b[container].findIndex((c) => c.id === id);
       const newIndex = b[container].findIndex((c) => c.id === overId);
-      if (newIndex >= 0 && oldIndex !== newIndex) apply((cur) => moveCard(cur, id, container, newIndex));
+      if (newIndex >= 0 && oldIndex !== newIndex) final = moveCard(b, id, container, newIndex);
     }
-    const final = locate(boardRef.current!, id)!;
-    if (final.status === origin.status && final.index === origin.index) return;
-    void commitMove(id, origin, final.status, final.index);
+    // El preview se descarta; el movimiento pasa al coordinador como dato optimista en la caché.
+    clearPreview();
+    const target = locate(final, id);
+    if (!target || (target.status === origin.status && target.index === origin.index)) return;
+    void commitMove(origin.card, target.status, target.index);
   };
 
   const onDragCancel = () => {
-    if (originRef.current) replace(originRef.current.snapshot);
     originRef.current = null;
     setActiveId(null);
+    clearPreview();
   };
 
   const announcements: Announcements = useMemo(
@@ -303,8 +322,9 @@ export function KanbanBoard() {
   const createOrder = async (input: CreateOrderInput) => {
     try {
       const res = await api.createOrder(input);
-      apply((b) => insertCard(b, res.data, res.data.position));
-      syncCache();
+      void kanban.mutate((current) => current && toKanbanBoard(insertCard(toBoardState(current), res.data, res.data.position)), {
+        revalidate: false,
+      });
       refreshAnalytics();
       setCreateOpen(false);
       setHighlightId(res.data.id);
@@ -331,6 +351,7 @@ export function KanbanBoard() {
             <Button
               variant="outline"
               size="sm"
+              disabled={phase === "saving" || phase === "refreshing"}
               onClick={() => void reloadFromServer()}
               aria-label="Recargar tablero"
               className="h-8"
@@ -345,11 +366,19 @@ export function KanbanBoard() {
       />
 
       {error && !board ? (
-        <ErrorState message={error.message} onRetry={() => void mutate()} />
+        <ErrorState message={error.message} onRetry={() => void reloadFromServer()} />
       ) : !board ? (
         <KanbanBoardSkeleton />
       ) : (
         <>
+          {phase === "needs-sync" ? (
+            <SyncBanner
+              message="El tablero no está sincronizado con el servidor. Los cambios confirmados se conservan; las demás acciones se reanudan al sincronizar."
+              onRetry={() => void reloadFromServer()}
+            />
+          ) : error ? (
+            <SyncBanner message={`No se pudo actualizar el tablero: ${error.message}`} onRetry={() => void reloadFromServer()} />
+          ) : null}
           <p className="sr-only" aria-live="polite">
             {total} órdenes en el tablero. {selected.size} seleccionadas.
           </p>
@@ -384,6 +413,7 @@ export function KanbanBoard() {
                   shakingId={shakingId}
                   highlightId={highlightId}
                   layoutEnabled={activeId === null}
+                  dragDisabled={writesLocked && activeId === null}
                 />
               ))}
             </div>
@@ -426,6 +456,21 @@ export function KanbanBoard() {
         products={productsQuery.data?.data.items ?? []}
         productsLoading={!productsQuery.data && !productsQuery.error}
       />
+    </div>
+  );
+}
+
+function SyncBanner({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div
+      role="alert"
+      data-testid="kanban-sync-banner"
+      className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ember/30 bg-ember/10 px-4 py-3 text-sm text-white/80"
+    >
+      <span>{message}</span>
+      <Button variant="outline" size="sm" className="h-8" onClick={onRetry}>
+        <RefreshCw className="size-3.5" /> Sincronizar
+      </Button>
     </div>
   );
 }
