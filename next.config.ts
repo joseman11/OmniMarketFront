@@ -22,11 +22,29 @@ const nextConfig: NextConfig = {
   turbopack: { root: path.join(__dirname) },
   poweredByHeader: false,
   async rewrites() {
-    return [
-      { source: "/api/auth/:path*", destination: `${backendUrl}/api/auth/:path*` },
-      { source: "/api/test/:path*", destination: `${backendUrl}/api/test/:path*` },
-      { source: "/backend/:path*", destination: `${backendUrl}/api/:path*` },
-    ];
+    return {
+      beforeFiles: [
+        {
+          source: "/api/test/analytics",
+          has: [
+            { type: "query", key: "page", value: "1" },
+            { type: "query", key: "limit", value: "50" },
+          ],
+          missing: [
+            { type: "cookie", key: "omni_session" },
+            { type: "query", key: "from" },
+            { type: "query", key: "to" },
+            { type: "query", key: "categoryId" },
+          ],
+          destination: "/fixtures/test-analytics.json",
+        },
+      ],
+      afterFiles: [
+        { source: "/api/auth/:path*", destination: `${backendUrl}/api/auth/:path*` },
+        { source: "/api/test/:path*", destination: `${backendUrl}/api/test/:path*` },
+        { source: "/backend/:path*", destination: `${backendUrl}/api/:path*` },
+      ],
+    };
   },
 };
 

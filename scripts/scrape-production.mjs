@@ -93,14 +93,16 @@ async function check(target, name, path, validate) {
     });
     const bodyText = await response.text();
     const ms = Math.round((performance.now() - started) * 10) / 10;
+    const cacheStatus = response.headers.get("x-vercel-cache");
+    const cacheAgeSeconds = response.headers.get("age");
     unreachable.delete(target);
     const body = parseJson(bodyText);
 
     try {
       const detail = validate({ response, body, bodyText, url });
-      results.push({ target, name, path, ok: true, status: response.status, ms, detail: detail ?? "OK" });
+      results.push({ target, name, path, ok: true, status: response.status, ms, cacheStatus, cacheAgeSeconds, detail: detail ?? "OK" });
     } catch (error) {
-      results.push({ target, name, path, ok: false, status: response.status, ms, detail: error.message });
+      results.push({ target, name, path, ok: false, status: response.status, ms, cacheStatus, cacheAgeSeconds, detail: error.message });
     }
   } catch (error) {
     unreachable.add(target);
@@ -238,7 +240,8 @@ if (config.json) {
   for (const item of results) {
     const result = item.skipped ? "SKIP" : item.ok ? "OK" : "FALLÓ";
     const time = item.ms === null ? "" : ` ${item.ms} ms`;
-    console.log(`${result.padEnd(6)} ${item.target.padEnd(8)} ${item.name}${time} — ${item.detail}`);
+    const cache = item.cacheStatus ? ` [Vercel ${item.cacheStatus}${item.cacheAgeSeconds ? `; age ${item.cacheAgeSeconds}s` : ""}]` : "";
+    console.log(`${result.padEnd(6)} ${item.target.padEnd(8)} ${item.name}${time}${cache} — ${item.detail}`);
   }
   console.log(`\nResultado: ${report.summary.passed} OK, ${report.summary.failed} fallidos, ${report.summary.skipped} omitidos.`);
 }
