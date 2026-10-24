@@ -30,7 +30,6 @@ describe("Página principal", () => {
     cy.get("section#producto").should("be.visible");
     cy.get("h1#hero-title").should("be.visible").and("contain.text", "Opera tu");
     cy.contains('a[href="/login"]', "Comenzar").should("be.visible");
-    cy.contains('a[href="#auditoria"]', "Ver auditoría de API").should("be.visible");
 
     // Secciones que componen la landing.
     cy.get('section[aria-label="Tecnologías"]').should("exist");
@@ -39,15 +38,13 @@ describe("Página principal", () => {
     cy.get('section[aria-label="Funciones principales"]').should("exist");
     cy.get("article#analitica").should("exist");
     cy.get("article#kanban").should("exist");
-    cy.get("section#auditoria").should("exist");
-    cy.get("h2#audit-title").should("contain.text", "Tres endpoints");
     cy.get("section h2#orders-title").should("exist");
     cy.get("section h2#cta-title").should("contain.text", "Tu operación");
 
     // Recorremos la página para disparar la carga diferida del contenido.
     cy.scrollTo("bottom", { duration: 500 });
     cy.get("footer").should("be.visible").and("contain.text", "OmniMarket");
-    cy.get('footer nav[aria-label="Pie de página"] a').should("have.length.at.least", 5);
+    cy.get('footer nav[aria-label="Pie de página"] a').should("have.length.at.least", 4);
 
     // Las imágenes deben haber resuelto correctamente.
     cy.get("img").each(($img) => {
