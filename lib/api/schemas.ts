@@ -98,10 +98,23 @@ export type AnalyticsRow = {
 };
 export type AnalyticsResponse = z.infer<typeof analyticsResponseSchema>;
 
+/** true si "YYYY-MM-DD" existe en el calendario (rechaza 2026-02-31, 2026-13-01…). */
+export function isCalendarDay(value: string): boolean {
+  const [y, m, d] = value.split("-").map(Number);
+  if (!y || !m || !d) return false;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
+
+const filterDaySchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine(isCalendarDay, { message: "La fecha no existe en el calendario" });
+
 export const analyticsFiltersSchema = z
   .object({
-    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    from: filterDaySchema.optional(),
+    to: filterDaySchema.optional(),
     categoryId: z.string().min(1).optional(),
   })
   .refine((filters) => !filters.from || !filters.to || filters.from <= filters.to, {

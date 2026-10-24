@@ -41,17 +41,36 @@ export function aggregateByCategory(rows: AnalyticsRow[]): CategoryPoint[] {
     .sort((a, b) => b.revenue - a.revenue);
 }
 
+/** Rango máximo que se rellena día a día (evita generar miles de puntos con rangos absurdos). */
+const MAX_FILLED_DAYS = 1100;
+
+/** Días de calendario [from, to] en orden, con ceros donde no hay registros. */
+export function fillDays(points: DayPoint[], from: string, to: string): DayPoint[] {
+  if (from > to) return [];
+  const byDay = new Map(points.map((p) => [p.day, p]));
+  const filled: DayPoint[] = [];
+  for (let day = from; day <= to && filled.length < MAX_FILLED_DAYS; day = shiftIsoDay(day, 1)) {
+    filled.push(byDay.get(day) ?? { day, revenue: 0, orders: 0, margin: 0 });
+  }
+  return filled;
+}
+
 export type Kpi = { value: number; previous: number; delta: number; series: number[] };
 export type KpiSet = { revenue: Kpi; orders: Kpi; avgTicket: Kpi; marginPct: Kpi };
 
 /**
- * KPIs del periodo actual (últimos `windowDays` días) vs. el periodo anterior
- * de la misma longitud. `series` alimenta las mini barras (últimos 12 días).
+ * KPIs del periodo actual (los `windowDays` días de calendario que terminan en `reference`)
+ * vs. el periodo anterior de la misma longitud. Los días sin registros cuentan como cero.
+ * `series` alimenta las mini barras (últimos 12 días de calendario).
+ * Sin `reference` se usa el último día presente en los datos.
  */
-export function computeKpis(rows: AnalyticsRow[], windowDays = 15): KpiSet {
+export function computeKpis(rows: AnalyticsRow[], windowDays = 15, reference?: string): KpiSet {
   const days = aggregateByDay(rows);
-  const current = days.slice(-windowDays);
-  const previous = days.slice(-windowDays * 2, -windowDays);
+  const ref = reference ?? days.at(-1)?.day;
+  const window = (fromOffset: number, toOffset: number) =>
+    ref ? fillDays(days, isoDaysBefore(ref, fromOffset), isoDaysBefore(ref, toOffset)) : [];
+  const current = window(windowDays - 1, 0);
+  const previous = window(windowDays * 2 - 1, windowDays);
 
   const totals = (ds: DayPoint[]) => {
     const revenue = sum(ds.map((d) => d.revenue));
@@ -61,7 +80,7 @@ export function computeKpis(rows: AnalyticsRow[], windowDays = 15): KpiSet {
   };
   const c = totals(current);
   const p = totals(previous);
-  const tail = days.slice(-12);
+  const tail = window(11, 0);
 
   return {
     revenue: { value: c.revenue, previous: p.revenue, delta: percentChange(c.revenue, p.revenue), series: tail.map((d) => d.revenue) },

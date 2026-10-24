@@ -17,9 +17,10 @@ import { useAnalyticsSeries } from "@/lib/hooks/use-api";
 import { cn } from "@/lib/utils";
 
 function QuickStats() {
-  const from = isoDaysBefore(useReferenceDate(), 29);
+  const today = useReferenceDate();
+  const from = isoDaysBefore(today, 29);
   const { data, isLoading } = useAnalyticsSeries({ from });
-  const k = data ? computeKpis(data, 30) : null;
+  const k = data ? computeKpis(data, 30, today) : null;
   const rows: [string, string | null][] = [
     ["Ingresos 30 d", k ? formatCurrency(k.revenue.value, { compact: true }) : null],
     ["Órdenes", k ? formatNumber(k.orders.value) : null],

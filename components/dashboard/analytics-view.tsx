@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { aggregateByCategory, aggregateByDay, isoDaysBefore } from "@/lib/analytics";
+import { aggregateByCategory, aggregateByDay, fillDays, isoDaysBefore } from "@/lib/analytics";
 import { analyticsFiltersSchema, PAGE_SIZES, paginationSchema } from "@/lib/api/schemas";
 import { categoryColor } from "@/lib/catalog";
 import { formatCurrency, formatDay, formatNumber, formatPercent } from "@/lib/format";
@@ -58,7 +58,8 @@ export function AnalyticsView() {
   // Sin keepPreviousData: al cambiar el filtro las gráficas muestran carga, no la serie anterior.
   const series = useAnalyticsSeries(filters);
   const categories = useCategories();
-  const byDay = series.data ? aggregateByDay(series.data) : [];
+  // La gráfica cubre el rango de calendario del filtro; los días sin ventas valen cero.
+  const byDay = series.data ? fillDays(aggregateByDay(series.data), filters.from ?? defaults.from, filters.to ?? defaults.to) : [];
   const byCat = series.data ? aggregateByCategory(series.data) : [];
   const meta = table.data?.data.meta;
   const totalPages = Math.max(1, meta?.totalPages ?? 1);

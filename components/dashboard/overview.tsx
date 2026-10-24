@@ -9,7 +9,7 @@ import { RevenueAreaChart } from "@/components/charts/revenue-area";
 import { KpiCard, KpiSkeleton } from "@/components/dashboard/kpi-card";
 import { ErrorState, PageHeader, Panel } from "@/components/dashboard/panel";
 import { Skeleton } from "@/components/ui/skeleton";
-import { aggregateByCategory, aggregateByDay, computeKpis, isoDaysBefore } from "@/lib/analytics";
+import { aggregateByCategory, aggregateByDay, computeKpis, fillDays, isoDaysBefore } from "@/lib/analytics";
 import { categoryColor } from "@/lib/catalog";
 import { formatCurrency, formatNumber, formatPercent, formatRelativeTime, splitCurrency } from "@/lib/format";
 import { marginRatio } from "@/lib/finance";
@@ -26,14 +26,15 @@ export function Overview() {
   const board = useKanbanBoard();
 
   const rows = series.data;
-  const kpis = rows ? computeKpis(rows, WINDOW) : null;
+  const kpis = rows ? computeKpis(rows, WINDOW, today) : null;
   const currentRows = useMemo(() => {
     if (!rows) return [];
     const cutoff = isoDaysBefore(today, WINDOW - 1);
     return rows.filter((r) => r.day >= cutoff);
   }, [rows, today]);
   const byCategory = aggregateByCategory(currentRows);
-  const byDay = aggregateByDay(currentRows);
+  // Mismo corte de calendario que los KPI: días sin ventas aparecen en cero.
+  const byDay = fillDays(aggregateByDay(currentRows), isoDaysBefore(today, WINDOW - 1), today);
   const totalRevenue = byCategory.reduce((a, c) => a + c.revenue, 0);
   const big = splitCurrency(totalRevenue);
 
