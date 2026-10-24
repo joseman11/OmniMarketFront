@@ -5,6 +5,7 @@ import { LogOut, Plus } from "lucide-react";
 import { useEffect, useTransition } from "react";
 import { signOutAction } from "@/app/dashboard/actions";
 import {
+  Command,
   CommandDialog,
   CommandEmpty,
   CommandGroup,
@@ -46,6 +47,8 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
       description="Busca una sección o acción"
       className="border-white/10 bg-[#0e0e15]/95 backdrop-blur-xl"
     >
+      {/* cmdk exige su raíz <Command>: sin ella CommandInput/CommandItem fallan al montar. */}
+      <Command className="bg-transparent">
       <CommandInput placeholder="Buscar sección o acción…" />
       <CommandList>
         <CommandEmpty>Sin resultados.</CommandEmpty>
@@ -79,6 +82,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           </CommandItem>
         </CommandGroup>
       </CommandList>
+      </Command>
     </CommandDialog>
   );
 }
