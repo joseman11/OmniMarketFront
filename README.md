@@ -28,7 +28,7 @@ En Windows (PowerShell): `Copy-Item .env.example .env.local`; si la política de
 | `npm run dev` / `build` / `start` | Next.js |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Unitarias: formatos, finanzas, schemas, analítica y Kanban |
+| `npm test` | Vitest con dos proyectos: `unit` (lógica pura en Node: formatos, finanzas, schemas, analítica, Kanban, guardas) y `components` (jsdom + React Testing Library + user-event + MSW: hooks y componentes con red simulada) |
 | `npm run test:e2e` | Playwright con backend mock local y autenticación de prueba aislada |
 | `npm run test:cypress` | Cypress (levanta el dev server en :3100 y corre `cypress run`); `npm run cypress` lo abre en modo interactivo |
 
