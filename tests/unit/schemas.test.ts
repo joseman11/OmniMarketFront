@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   analyticsResponseSchema,
+  analyticsFiltersSchema,
   bulkUpdateInputSchema,
+  categoryInputSchema,
   createOrderInputSchema,
+  decimalSchema,
   kanbanStatusResponseSchema,
   paginationSchema,
 } from "@/lib/api/schemas";
@@ -88,5 +91,21 @@ describe("parseo de respuestas en la frontera", () => {
   it("bulk update exige al menos un id", () => {
     expect(bulkUpdateInputSchema.safeParse({ ids: [], patch: { status: "SHIPPED" } }).success).toBe(false);
     expect(bulkUpdateInputSchema.safeParse({ ids: ["a"], patch: { status: "SHIPPED" } }).success).toBe(true);
+  });
+
+  it("valida filtros de analítica con fechas ordenadas y formato ISO", () => {
+    expect(analyticsFiltersSchema.safeParse({ from: "2026-10-01", to: "2026-10-31" }).success).toBe(true);
+    expect(analyticsFiltersSchema.safeParse({ from: "2026-10-31", to: "2026-10-01" }).success).toBe(false);
+    expect(analyticsFiltersSchema.safeParse({ from: "2026/02/30" }).success).toBe(false);
+  });
+
+  it("normaliza nombres de categoría y rechaza slugs que no son URL-safe", () => {
+    expect(categoryInputSchema.parse({ name: " Hogar ", slug: "hogar-y-cocina" })).toEqual({ name: "Hogar", slug: "hogar-y-cocina" });
+    expect(categoryInputSchema.safeParse({ name: "Hogar", slug: "Hogar y Cocina" }).success).toBe(false);
+  });
+
+  it("acepta decimales finitos y rechaza texto que no representa un importe", () => {
+    expect(decimalSchema.parse("125.50")).toBe(125.5);
+    expect(decimalSchema.safeParse("12abc").success).toBe(false);
   });
 });

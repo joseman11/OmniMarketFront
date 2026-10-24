@@ -24,4 +24,10 @@ describe("parseo seguro de Decimal", () => {
   it("roundTo corrige el clásico 1.005", () => {
     expect(roundTo(1.005, 2)).toBe(1.01);
   });
+
+  it("acepta espacios y notación exponencial sin aceptar texto parcial", () => {
+    expect(parseDecimal(" 1.25 ")).toBe(1.25);
+    expect(parseDecimal("2.5e2")).toBe(250);
+    expect(tryParseDecimal("12 USD")).toBeNull();
+  });
 });

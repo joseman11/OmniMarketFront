@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCurrency, formatPercent, formatRelativeTime, splitCurrency } from "@/lib/format";
+import { formatCurrency, formatDay, formatMs, formatNumber, formatPercent, formatRelativeTime, splitCurrency } from "@/lib/format";
 
 // Intl usa NBSP en algunos formatos; normalizamos para comparar.
 const n = (s: string) => s.replace(/ | /g, " ");
@@ -39,5 +39,16 @@ describe("formatRelativeTime", () => {
     const now = new Date("2026-10-23T12:00:00Z");
     expect(formatRelativeTime(new Date("2026-10-23T11:55:00Z"), now)).toBe("hace 5 minutos");
     expect(formatRelativeTime(new Date("2026-10-22T12:00:00Z"), now)).toBe("ayer");
+  });
+
+  it("formatea fechas de calendario y conserva entradas incompletas", () => {
+    expect(formatDay("2026-01-05", { year: true })).toContain("2026");
+    expect(formatDay("fecha-invalida")).toBe("fecha-invalida");
+  });
+
+  it("formatea números y latencias, con fallback para valores no finitos", () => {
+    expect(formatNumber(12345)).toBe("12,345");
+    expect(formatNumber(Number.NaN)).toBe("0");
+    expect(formatMs(1.6)).toBe("2 ms");
   });
 });

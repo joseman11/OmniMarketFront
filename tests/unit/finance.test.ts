@@ -31,4 +31,10 @@ describe("variación y totales", () => {
   it("suma el total de una orden a partir de sus ítems", () => {
     expect(orderTotal([{ quantity: 2, unitPrice: 459 }, { quantity: 1, unitPrice: 0.1 }])).toBe(918.1);
   });
+
+  it("maneja ventas nuevas, pedidos vacíos y valores no finitos", () => {
+    expect(percentChange(50, 0)).toBe(1);
+    expect(averageTicket(Number.POSITIVE_INFINITY, 3)).toBe(0);
+    expect(orderTotal([])).toBe(0);
+  });
 });
