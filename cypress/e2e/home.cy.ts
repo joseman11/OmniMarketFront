@@ -28,11 +28,11 @@ describe("Página principal", () => {
 
     // Hero.
     cy.get("section#producto").should("be.visible");
-    cy.get("h1#hero-title").should("be.visible").and("contain.text", "Opera tu");
-    cy.contains('a[href="/login"]', "Comenzar").should("be.visible");
+    cy.get("h1#hero-title").should("be.visible").and("contain.text", "Vende más");
+    cy.contains('a[href="/login"]', "Empieza gratis").should("be.visible");
 
     // Secciones que componen la landing.
-    cy.get('section[aria-label="Tecnologías"]').should("exist");
+    cy.get('section[aria-label="Beneficios"]').should("exist");
     cy.get("section#preview").should("exist");
     cy.get("h2#preview-title").should("contain.text", "Todo tu negocio");
     cy.get('section[aria-label="Funciones principales"]').should("exist");

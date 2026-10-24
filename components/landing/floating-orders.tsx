@@ -18,21 +18,21 @@ type FloatOrder = {
 };
 
 const ROW_A: FloatOrder[] = [
-  { id: "OM-1093", customer: "Valeria H.", items: "Cafetera espresso", total: 4290, status: "PROCESSING", tone: "#7c5cff", from: "#2b1d6b", to: "#7c5cff" },
-  { id: "OM-1094", customer: "Diego R.", items: "Tenis urbanos ×2", total: 3598, status: "SHIPPED", tone: "#ff9a5c", from: "#5a2410", to: "#ff9a5c" },
-  { id: "OM-1095", customer: "Sofía M.", items: "Kit skincare", total: 1120, status: "DELIVERED", tone: "#3ddc97", from: "#0e3b2a", to: "#3ddc97" },
-  { id: "OM-1096", customer: "Emiliano G.", items: "Smartwatch Fit Pro", total: 3299, status: "PENDING", tone: "#5cc8ff", from: "#0e2a45", to: "#5cc8ff" },
-  { id: "OM-1097", customer: "Regina L.", items: "Mancuernas 20 kg", total: 2890, status: "PROCESSING", tone: "#ff6fa8", from: "#4a1230", to: "#ff6fa8" },
-  { id: "OM-1098", customer: "Santiago T.", items: "Audífonos ANC", total: 2499, status: "SHIPPED", tone: "#a493ff", from: "#24185a", to: "#a493ff" },
+  { id: "OM-1093", customer: "Valeria H.", items: "Cafetera espresso", total: 4290, status: "Preparando", tone: "#7c5cff", from: "#2b1d6b", to: "#7c5cff" },
+  { id: "OM-1094", customer: "Diego R.", items: "Tenis urbanos ×2", total: 3598, status: "En camino", tone: "#ff9a5c", from: "#5a2410", to: "#ff9a5c" },
+  { id: "OM-1095", customer: "Sofía M.", items: "Kit skincare", total: 1120, status: "Entregado", tone: "#3ddc97", from: "#0e3b2a", to: "#3ddc97" },
+  { id: "OM-1096", customer: "Emiliano G.", items: "Smartwatch Fit Pro", total: 3299, status: "Nuevo", tone: "#5cc8ff", from: "#0e2a45", to: "#5cc8ff" },
+  { id: "OM-1097", customer: "Regina L.", items: "Mancuernas 20 kg", total: 2890, status: "Preparando", tone: "#ff6fa8", from: "#4a1230", to: "#ff6fa8" },
+  { id: "OM-1098", customer: "Santiago T.", items: "Audífonos ANC", total: 2499, status: "En camino", tone: "#a493ff", from: "#24185a", to: "#a493ff" },
 ];
 
 const ROW_B: FloatOrder[] = [
-  { id: "OM-1099", customer: "Ximena F.", items: "Sartenes cerámicos", total: 1590, status: "DELIVERED", tone: "#ff9a5c", from: "#53230e", to: "#ffb98a" },
-  { id: "OM-1100", customer: "Mateo S.", items: "Teclado mecánico", total: 1899, status: "PENDING", tone: "#7c5cff", from: "#1d1550", to: "#7c5cff" },
-  { id: "OM-1101", customer: "Camila R.", items: "Mochila 25 L ×2", total: 1798, status: "PROCESSING", tone: "#3ddc97", from: "#0b3324", to: "#3ddc97" },
-  { id: "OM-1102", customer: "Leonardo C.", items: "Tapete de yoga", total: 749, status: "CANCELLED", tone: "#ff5c7a", from: "#4a0f1e", to: "#ff5c7a" },
-  { id: "OM-1103", customer: "Renata M.", items: "Lámpara LED ×3", total: 2067, status: "SHIPPED", tone: "#5cc8ff", from: "#0b2840", to: "#5cc8ff" },
-  { id: "OM-1104", customer: "Sebastián O.", items: "Libro de sistemas", total: 789, status: "DELIVERED", tone: "#f5d76e", from: "#3d330c", to: "#f5d76e" },
+  { id: "OM-1099", customer: "Ximena F.", items: "Sartenes cerámicos", total: 1590, status: "Entregado", tone: "#ff9a5c", from: "#53230e", to: "#ffb98a" },
+  { id: "OM-1100", customer: "Mateo S.", items: "Teclado mecánico", total: 1899, status: "Nuevo", tone: "#7c5cff", from: "#1d1550", to: "#7c5cff" },
+  { id: "OM-1101", customer: "Camila R.", items: "Mochila 25 L ×2", total: 1798, status: "Preparando", tone: "#3ddc97", from: "#0b3324", to: "#3ddc97" },
+  { id: "OM-1102", customer: "Leonardo C.", items: "Tapete de yoga", total: 749, status: "Cancelado", tone: "#ff5c7a", from: "#4a0f1e", to: "#ff5c7a" },
+  { id: "OM-1103", customer: "Renata M.", items: "Lámpara LED ×3", total: 2067, status: "En camino", tone: "#5cc8ff", from: "#0b2840", to: "#5cc8ff" },
+  { id: "OM-1104", customer: "Sebastián O.", items: "Libro de sistemas", total: 789, status: "Entregado", tone: "#f5d76e", from: "#3d330c", to: "#f5d76e" },
 ];
 
 const TILTS = [-6, 4, -3, 7, -5, 3];
@@ -53,7 +53,7 @@ function OrderTile({ o, i }: { o: FloatOrder; i: number }) {
         <div className="flex items-center justify-between">
           <span className="font-mono text-xs text-white/70">{o.id}</span>
           <span
-            className="rounded-full px-2 py-0.5 font-mono text-[10px]"
+            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
             style={{ color: o.tone, background: `${o.tone}1f`, border: `1px solid ${o.tone}44` }}
           >
             {o.status}
@@ -86,10 +86,10 @@ export function FloatingOrders() {
       <div className="relative px-4">
         <SectionHeading
           id="orders-title"
-          eyebrow="Órdenes"
-          title="Cada orden, siempre en movimiento"
+          eyebrow="Pedidos"
+          title="Tus pedidos, siempre en movimiento"
           accent={["siempre", "en", "movimiento"]}
-          description="Pendiente, procesando, enviada, entregada. Cada cambio queda versionado y auditable."
+          description="Del primer clic de tu cliente hasta su puerta. Sabes dónde está cada pedido y nada se queda atorado en el camino."
         />
       </div>
       <div className="relative mt-16 flex flex-col gap-8 pb-0">
