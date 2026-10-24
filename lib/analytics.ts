@@ -82,8 +82,42 @@ export function computeKpis(rows: AnalyticsRow[], windowDays = 15): KpiSet {
   };
 }
 
-/** "YYYY-MM-DD" local para hoy − n días. */
+/**
+ * Zona horaria de negocio: los días de las métricas se cuentan en hora de México, igual en
+ * el servidor (SSR) y en el navegador, para que ambos calculen la misma fecha.
+ */
+export const BUSINESS_TIME_ZONE = "America/Mexico_City";
+
+const businessDayFmt = new Intl.DateTimeFormat("en-US", {
+  timeZone: BUSINESS_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+function toIsoDay(year: number, month: number, day: number) {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** "YYYY-MM-DD" de hoy en la zona de negocio. */
+export function todayIso(now = new Date()): string {
+  const parts = Object.fromEntries(businessDayFmt.formatToParts(now).map((p) => [p.type, p.value]));
+  return toIsoDay(Number(parts.year), Number(parts.month), Number(parts.day));
+}
+
+/** Suma `delta` días de calendario a un "YYYY-MM-DD" (aritmética UTC, sin efectos de horario de verano). */
+export function shiftIsoDay(isoDay: string, delta: number): string {
+  const [y, m, d] = isoDay.split("-").map(Number);
+  const date = new Date(Date.UTC(y!, m! - 1, d! + delta));
+  return toIsoDay(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+}
+
+/** "YYYY-MM-DD" para `reference` − n días. */
+export function isoDaysBefore(reference: string, n: number): string {
+  return shiftIsoDay(reference, -n);
+}
+
+/** "YYYY-MM-DD" en la zona de negocio para hoy − n días. */
 export function isoDaysAgo(n: number, now = new Date()): string {
-  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - n);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return isoDaysBefore(todayIso(now), n);
 }

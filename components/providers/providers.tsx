@@ -11,7 +11,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <SWRConfig
         value={{
           revalidateOnFocus: false,
-          keepPreviousData: true,
+          // keepPreviousData no es global: sólo la paginación deliberada lo activa (useAnalytics).
           shouldRetryOnError: false,
         }}
       >

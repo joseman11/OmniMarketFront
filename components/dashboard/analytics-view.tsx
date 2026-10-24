@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RotateCcw } from "lucide-react";
 import { useCallback, useMemo } from "react";
+import { useReferenceDate } from "@/components/dashboard/reference-date";
 import { MarginBars } from "@/components/charts/margin-bars";
 import { RevenueAreaChart } from "@/components/charts/revenue-area";
 import { LatencyBadge } from "@/components/dashboard/latency-badge";
@@ -12,12 +13,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { aggregateByCategory, aggregateByDay, isoDaysAgo } from "@/lib/analytics";
+import { aggregateByCategory, aggregateByDay, isoDaysBefore } from "@/lib/analytics";
 import { analyticsFiltersSchema, PAGE_SIZES, paginationSchema } from "@/lib/api/schemas";
 import { categoryColor } from "@/lib/catalog";
 import { formatCurrency, formatDay, formatNumber, formatPercent } from "@/lib/format";
 import { marginRatio } from "@/lib/finance";
-import { useAnalytics, useAnalyticsSeries, useCategories } from "@/lib/hooks/use-api";
+import { analyticsFiltersKey, useAnalytics, useAnalyticsSeries, useCategories } from "@/lib/hooks/use-api";
 import { cn } from "@/lib/utils";
 
 const ALL = "all";
@@ -27,7 +28,8 @@ export function AnalyticsView() {
   const pathname = usePathname();
   const params = useSearchParams();
 
-  const defaults = useMemo(() => ({ from: isoDaysAgo(29), to: isoDaysAgo(0) }), []);
+  const today = useReferenceDate();
+  const defaults = useMemo(() => ({ from: isoDaysBefore(today, 29), to: today }), [today]);
   const pag = paginationSchema.safeParse({ page: params.get("page") ?? 1, limit: params.get("limit") ?? 25 });
   const page = pag.success ? pag.data.page : 1;
   const limit = pag.success && (PAGE_SIZES as readonly number[]).includes(pag.data.limit) ? pag.data.limit : 25;
@@ -49,7 +51,11 @@ export function AnalyticsView() {
     [params, pathname, router],
   );
 
-  const table = useAnalytics({ page, limit, ...filters });
+  const tableQuery = useAnalytics({ page, limit, ...filters });
+  // Datos de la tabla sólo si pertenecen al filtro visible (la página anterior sí se conserva).
+  const tableData = tableQuery.data?.filtersKey === analyticsFiltersKey(filters) ? tableQuery.data : undefined;
+  const table = { ...tableQuery, data: tableData };
+  // Sin keepPreviousData: al cambiar el filtro las gráficas muestran carga, no la serie anterior.
   const series = useAnalyticsSeries(filters);
   const categories = useCategories();
   const byDay = series.data ? aggregateByDay(series.data) : [];
@@ -116,10 +122,10 @@ export function AnalyticsView() {
               <button
                 key={d}
                 type="button"
-                onClick={() => setParams({ from: isoDaysAgo(d - 1), to: isoDaysAgo(0), page: 1 })}
+                onClick={() => setParams({ from: isoDaysBefore(today, d - 1), to: today, page: 1 })}
                 className={cn(
                   "h-9 rounded-lg border px-3 text-xs transition",
-                  from === isoDaysAgo(d - 1) && to === isoDaysAgo(0)
+                  from === isoDaysBefore(today, d - 1) && to === today
                     ? "border-brand/50 bg-brand/15 text-white"
                     : "border-white/10 text-white/55 hover:text-white",
                 )}

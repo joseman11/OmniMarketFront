@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
+import { ReferenceDateProvider } from "@/components/dashboard/reference-date";
 import { SessionScope } from "@/components/dashboard/session-scope";
 import { DashboardShell } from "@/components/dashboard/shell";
+import { todayIso } from "@/lib/analytics";
 import { getBackendUser } from "@/lib/server/session";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -19,7 +21,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // La caché de datos pertenece a esta identidad: cambiarla remonta el árbol.
   return (
     <SessionScope key={backendUser.id} userId={backendUser.id}>
-      <DashboardShell user={user}>{children}</DashboardShell>
+      <ReferenceDateProvider value={todayIso()}>
+        <DashboardShell user={user}>{children}</DashboardShell>
+      </ReferenceDateProvider>
     </SessionScope>
   );
 }

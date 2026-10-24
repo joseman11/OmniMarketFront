@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { useMemo } from "react";
+import { useReferenceDate } from "@/components/dashboard/reference-date";
 import { SegmentedBar } from "@/components/charts/segmented-bar";
 import { RevenueAreaChart } from "@/components/charts/revenue-area";
 import { KpiCard, KpiSkeleton } from "@/components/dashboard/kpi-card";
 import { ErrorState, PageHeader, Panel } from "@/components/dashboard/panel";
 import { Skeleton } from "@/components/ui/skeleton";
-import { aggregateByCategory, aggregateByDay, computeKpis, isoDaysAgo } from "@/lib/analytics";
+import { aggregateByCategory, aggregateByDay, computeKpis, isoDaysBefore } from "@/lib/analytics";
 import { categoryColor } from "@/lib/catalog";
 import { formatCurrency, formatNumber, formatPercent, formatRelativeTime, splitCurrency } from "@/lib/format";
 import { marginRatio } from "@/lib/finance";
@@ -19,7 +20,8 @@ import { STATUS_META } from "@/lib/status";
 const WINDOW = 15;
 
 export function Overview() {
-  const from = useMemo(() => isoDaysAgo(WINDOW * 2 - 1), []);
+  const today = useReferenceDate();
+  const from = isoDaysBefore(today, WINDOW * 2 - 1);
   const series = useAnalyticsSeries({ from });
   const board = useKanbanBoard();
 
@@ -27,9 +29,9 @@ export function Overview() {
   const kpis = rows ? computeKpis(rows, WINDOW) : null;
   const currentRows = useMemo(() => {
     if (!rows) return [];
-    const cutoff = isoDaysAgo(WINDOW - 1);
+    const cutoff = isoDaysBefore(today, WINDOW - 1);
     return rows.filter((r) => r.day >= cutoff);
-  }, [rows]);
+  }, [rows, today]);
   const byCategory = aggregateByCategory(currentRows);
   const byDay = aggregateByDay(currentRows);
   const totalRevenue = byCategory.reduce((a, c) => a + c.revenue, 0);

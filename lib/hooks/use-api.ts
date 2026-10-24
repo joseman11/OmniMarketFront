@@ -6,9 +6,23 @@ import type { AnalyticsFilters } from "@/lib/api/schemas";
 
 export type AnalyticsQuery = { page: number; limit: number } & AnalyticsFilters;
 
-/** Tabla paginada en servidor. Expone latencia de la última petición. */
+/** Identidad del filtro semántico (sin paginación) al que pertenecen unos datos. */
+export function analyticsFiltersKey(filters: AnalyticsFilters) {
+  return [filters.from ?? "", filters.to ?? "", filters.categoryId ?? ""].join("|");
+}
+
+/**
+ * Tabla paginada en servidor. Expone latencia de la última petición. Conserva la página
+ * anterior mientras carga la siguiente (paginación deliberada); cada resultado lleva el
+ * filtro al que pertenece para no mostrarlo bajo un filtro distinto.
+ */
 export function useAnalytics(q: AnalyticsQuery) {
-  return useSWR(["analytics", q.page, q.limit, q.from ?? "", q.to ?? "", q.categoryId ?? ""], () => api.getAnalytics(q));
+  const filtersKey = analyticsFiltersKey(q);
+  return useSWR(
+    ["analytics", q.page, q.limit, q.from ?? "", q.to ?? "", q.categoryId ?? ""],
+    () => api.getAnalytics(q).then((result) => ({ ...result, filtersKey })),
+    { keepPreviousData: true },
+  );
 }
 
 /** Serie completa del rango para gráficas/KPIs (una sola página grande). */

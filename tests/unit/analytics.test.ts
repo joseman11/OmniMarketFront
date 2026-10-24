@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aggregateByCategory, computeKpis } from "@/lib/analytics";
+import { aggregateByCategory, computeKpis, isoDaysBefore, shiftIsoDay, todayIso } from "@/lib/analytics";
 import type { AnalyticsRow } from "@/lib/api/schemas";
 
 const row = (day: string, cat: string, orders: number, revenue: number, margin: number): AnalyticsRow => ({
@@ -25,5 +25,20 @@ describe("lógica de agregación (filtrado/KPIs)", () => {
     expect(k.revenue.delta).toBeCloseTo(0.2);
     expect(k.avgTicket.value).toBe(120);
     expect(k.marginPct.delta).toBeCloseTo(0.5 - 0.4);
+  });
+});
+
+describe("fechas de negocio (zona horaria fija)", () => {
+  it("todayIso usa la zona de negocio, no la del proceso", () => {
+    // 03:00 UTC del 25/10 sigue siendo 24/10 en Ciudad de México (UTC−6).
+    expect(todayIso(new Date("2026-10-25T03:00:00Z"))).toBe("2026-10-24");
+    expect(todayIso(new Date("2026-10-25T07:00:00Z"))).toBe("2026-10-25");
+  });
+
+  it("shiftIsoDay cruza meses y años bisiestos", () => {
+    expect(shiftIsoDay("2026-03-01", -1)).toBe("2026-02-28");
+    expect(shiftIsoDay("2024-03-01", -1)).toBe("2024-02-29");
+    expect(shiftIsoDay("2026-12-31", 1)).toBe("2027-01-01");
+    expect(isoDaysBefore("2026-10-24", 29)).toBe("2026-09-25");
   });
 });

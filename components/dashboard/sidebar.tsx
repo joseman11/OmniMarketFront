@@ -4,19 +4,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { ChevronDown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { LogoMark } from "@/components/brand/logo";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserMenu, type ShellUser } from "@/components/dashboard/user-menu";
 import { NAV_ITEMS, isActive } from "@/components/dashboard/nav";
 import { Skeleton } from "@/components/ui/skeleton";
-import { computeKpis, isoDaysAgo } from "@/lib/analytics";
+import { useReferenceDate } from "@/components/dashboard/reference-date";
+import { computeKpis, isoDaysBefore } from "@/lib/analytics";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
 import { useAnalyticsSeries } from "@/lib/hooks/use-api";
 import { cn } from "@/lib/utils";
 
 function QuickStats() {
-  const from = useMemo(() => isoDaysAgo(29), []);
+  const from = isoDaysBefore(useReferenceDate(), 29);
   const { data, isLoading } = useAnalyticsSeries({ from });
   const k = data ? computeKpis(data, 30) : null;
   const rows: [string, string | null][] = [
