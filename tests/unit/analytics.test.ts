@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aggregateByCategory, computeKpis } from "@/lib/analytics";
+import { aggregateByCategory, aggregateByDay, computeKpis, isoDaysAgo } from "@/lib/analytics";
 import type { AnalyticsRow } from "@/lib/api/schemas";
 
 const row = (day: string, cat: string, orders: number, revenue: number, margin: number): AnalyticsRow => ({
@@ -25,5 +25,30 @@ describe("lógica de agregación (filtrado/KPIs)", () => {
     expect(k.revenue.delta).toBeCloseTo(0.2);
     expect(k.avgTicket.value).toBe(120);
     expect(k.marginPct.delta).toBeCloseTo(0.5 - 0.4);
+  });
+
+  it("agrupa el mismo día, redondea importes y ordena cronológicamente", () => {
+    const result = aggregateByDay([
+      row("2026-10-02", "A", 1, 10.1, 2.03),
+      row("2026-10-01", "B", 2, 20.2, 4.04),
+      row("2026-10-02", "B", 2, 5.2, 1.02),
+    ]);
+
+    expect(result).toEqual([
+      { day: "2026-10-01", revenue: 20.2, orders: 2, margin: 4.04 },
+      { day: "2026-10-02", revenue: 15.3, orders: 3, margin: 3.05 },
+    ]);
+  });
+
+  it("devuelve KPIs en cero para periodos vacíos y sin división entre cero", () => {
+    const kpis = computeKpis([], 7);
+    expect(kpis.revenue).toEqual({ value: 0, previous: 0, delta: 0, series: [] });
+    expect(kpis.avgTicket.value).toBe(0);
+    expect(kpis.marginPct.value).toBe(0);
+  });
+
+  it("calcula fechas anteriores a través de cambios de mes y año", () => {
+    expect(isoDaysAgo(1, new Date(2025, 0, 1, 12))).toBe("2024-12-31");
+    expect(isoDaysAgo(1, new Date(2026, 2, 1, 12))).toBe("2026-02-28");
   });
 });

@@ -72,6 +72,13 @@ describe("contratos mock de las pantallas nuevas", () => {
     expect(updated.status).toBe(200);
     expect((updated.body as { item: { version: number; items: Array<{ quantity: number }> } }).item).toMatchObject({ version: order.version + 1, items: [{ quantity: 2 }] });
 
+    const stale = await call({
+      method: "PATCH",
+      path: `/api/orders/${order.id}`,
+      body: { expectedVersion: order.version, items: [{ productId, quantity: 1 }] },
+    });
+    expect(stale.status).toBe(409);
+
     expect((await call({ method: "DELETE", path: `/api/orders/${order.id}` })).status).toBe(204);
     expect((await call({ method: "GET", path: `/api/orders/${order.id}` })).status).toBe(404);
   });
@@ -82,5 +89,26 @@ describe("contratos mock de las pantallas nuevas", () => {
     expect((await call({ method: "GET", path: "/api/test/kanban-status", query: { orderNumber: "OM-TEST-1001" } })).status).toBe(200);
     const contract = await call({ method: "GET", path: "/api/test/contract" });
     expect((contract.body as { endpoints: string[] }).endpoints).toContain("GET /api/test/kanban-status?orderNumber=OM-TEST-1001");
+  });
+
+  it("filtra productos por texto y paginación sin perder el total", async () => {
+    const filtered = await call({
+      method: "GET",
+      path: "/api/products",
+      query: { search: "p-aud-01", active: "true", page: 1, limit: 1 },
+    });
+    expect(filtered.status).toBe(200);
+    expect((filtered.body as { items: Array<{ sku: string }>; pagination: { total: number; page: number } })).toMatchObject({
+      items: [expect.objectContaining({ sku: "P-AUD-01" })],
+      pagination: { total: 1, page: 1 },
+    });
+  });
+
+  it("protege categorías que todavía tienen productos asociados", async () => {
+    const categories = await call({ method: "GET", path: "/api/categories" });
+    const categoryId = (categories.body as { items: Array<{ id: string }> }).items[0]!.id;
+
+    expect((await call({ method: "DELETE", path: `/api/categories/${categoryId}` })).status).toBe(409);
+    expect((await call({ method: "GET", path: "/api/categories" })).status).toBe(200);
   });
 });

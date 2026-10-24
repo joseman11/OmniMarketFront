@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { KanbanCard } from "@/lib/api/schemas";
-import { emptyBoard, findContainer, moveCard, summarizeSelection, toKanbanBoard } from "@/lib/kanban";
+import { emptyBoard, findContainer, insertCard, isStatus, locate, moveCard, patchCard, summarizeSelection, toBoardState, toKanbanBoard } from "@/lib/kanban";
 
 const card = (id: string, status: KanbanCard["status"], position: number): KanbanCard => ({
   id,
@@ -41,5 +41,40 @@ describe("movimientos del Kanban", () => {
     expect(findContainer(b, "c")).toBe("SHIPPED");
     expect(findContainer(b, "DELIVERED")).toBe("DELIVERED");
     expect([...summarizeSelection(b, ["a", "b", "c"])]).toEqual([["PENDING", 2], ["SHIPPED", 1]]);
+  });
+
+  it("reconoce sólo los estados admitidos y localiza tarjetas desconocidas como ausentes", () => {
+    const b = board();
+    expect(isStatus("PROCESSING")).toBe(true);
+    expect(isStatus("UNKNOWN")).toBe(false);
+    expect(locate(b, "missing")).toBeNull();
+    expect(findContainer(b, "missing")).toBeNull();
+  });
+
+  it("acota inserciones y movimientos al rango de la columna", () => {
+    const b = board();
+    expect(insertCard(b, { ...b.PENDING[0]!, id: "new" }, 999).PENDING.map((c) => c.id)).toEqual(["a", "b", "new"]);
+    expect(moveCard(b, "a", "SHIPPED", -5).SHIPPED.map((c) => c.id)).toEqual(["a", "c"]);
+    expect(moveCard(b, "a", "SHIPPED", 999).SHIPPED.map((c) => c.id)).toEqual(["c", "a"]);
+  });
+
+  it("mantiene el tablero original al parchear e ignora ids desconocidos", () => {
+    const b = board();
+    const patched = patchCard(b, "a", { version: 2 });
+    expect(patched.PENDING[0]?.version).toBe(2);
+    expect(b.PENDING[0]?.version).toBe(1);
+    expect(patchCard(b, "missing", { version: 2 })).toBe(b);
+  });
+
+  it("crea un tablero sin tarjetas en todas las columnas", () => {
+    expect(Object.values(emptyBoard()).every((column) => column.length === 0)).toBe(true);
+  });
+
+  it("ordena las tarjetas recibidas por posición", () => {
+    const source = board();
+    const response = toKanbanBoard(source);
+    response.columns.find((column) => column.status === "PENDING")!.cards.reverse();
+    const restored = toBoardState(response);
+    expect(restored.PENDING.map((card) => [card.id, card.position])).toEqual([["a", 0], ["b", 1]]);
   });
 });
