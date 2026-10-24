@@ -4,7 +4,8 @@ const PORT = Number(process.env.E2E_PORT ?? 3100);
 
 /**
  * E2E con el adaptador mock (NEXT_PUBLIC_USE_MOCKS=true) para que sean repetibles.
- * La sesión de prueba es una cookie aislada, aceptada sólo con E2E_MOCK_AUTH=true.
+ * La sesión de prueba es una cookie aislada, aceptada sólo con E2E_MOCK_AUTH=true y el modo
+ * de pruebas explícito OMNIMARKET_TEST_ENV=true sobre next dev (nunca en un build productivo).
  */
 export default defineConfig({
   testDir: "tests/e2e",
@@ -26,6 +27,7 @@ export default defineConfig({
     env: {
       NEXT_PUBLIC_USE_MOCKS: "true",
       E2E_MOCK_AUTH: "true",
+      OMNIMARKET_TEST_ENV: "true",
     },
   },
 });

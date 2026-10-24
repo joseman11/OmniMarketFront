@@ -62,7 +62,7 @@ En Windows (PowerShell): `Copy-Item .env.example .env.local`; si la política de
 | Auditoría | `GET /api/health`, `GET /api/test/analytics`, `GET /api/test/kanban-status` y `GET /api/test/contract` |
 | Reset de fixtures | `POST /api/test/reset-data`; el navegador lo invoca mediante una ruta servidor que comprueba origen, sesión ADMIN y `TEST_API_TOKEN` |
 
-`NEXT_PUBLIC_USE_MOCKS=true` habilita el adaptador local para desarrollo visual y CI; en Railway debe ser `false`. Las mutaciones reales envían credenciales incluidas para la cookie HttpOnly. El token de reset es solo de servidor y no debe llevar prefijo `NEXT_PUBLIC_`.
+`NEXT_PUBLIC_USE_MOCKS=true` habilita el adaptador local para desarrollo visual y E2E (siempre sobre `next dev`); en Railway/Vercel debe ser `false`. Un build o arranque con `NODE_ENV=production` falla si `NEXT_PUBLIC_USE_MOCKS` o `E2E_MOCK_AUTH` están en `true` (`lib/env-guard.ts`). La sesión E2E sólo se acepta con `E2E_MOCK_AUTH=true` y el modo de pruebas explícito `OMNIMARKET_TEST_ENV=true`, que fijan `playwright.config.ts`, `npm run test:cypress` y la CI. Las mutaciones reales envían credenciales incluidas para la cookie HttpOnly. El token de reset es solo de servidor y no debe llevar prefijo `NEXT_PUBLIC_`.
 
 ## Railway y CI/CD
 

@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "cypress": "cypress open",
-    "test:cypress": "E2E_MOCK_AUTH=true start-server-and-test 'npm run dev -- -p 3100' http://localhost:3100 'cypress run'"
+    "test:cypress": "NEXT_PUBLIC_USE_MOCKS=true E2E_MOCK_AUTH=true OMNIMARKET_TEST_ENV=true start-server-and-test 'npm run dev -- -p 3100' http://localhost:3100 'cypress run'"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

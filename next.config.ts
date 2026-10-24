@@ -1,5 +1,9 @@
 import path from "node:path";
 import type { NextConfig } from "next";
+import { assertProductionConfig } from "./lib/env-guard";
+
+// Falla el build/arranque productivo si hay bypass de sesión E2E o mocks activados.
+assertProductionConfig();
 
 const backendUrl = (process.env.OMNIMARKET_API_URL ?? "http://localhost:3001").replace(/\/$/, "");
 

@@ -13,8 +13,10 @@ jobs:
   quality:
     name: Lint · Typecheck · Unit · Build
     runs-on: ubuntu-latest
+    # El build de este job es el artefacto productivo: sin mocks ni bypass de sesión
+    # (lib/env-guard.ts rompe el build si se activan con NODE_ENV=production).
     env:
-      NEXT_PUBLIC_USE_MOCKS: "true"
+      NEXT_PUBLIC_USE_MOCKS: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,8 +34,10 @@ jobs:
     needs: quality
     runs-on: ubuntu-latest
     env:
+      # Modo de pruebas explícito: los E2E corren sobre next dev, no sobre el build productivo.
       NEXT_PUBLIC_USE_MOCKS: "true"
       E2E_MOCK_AUTH: "true"
+      OMNIMARKET_TEST_ENV: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -55,8 +59,10 @@ jobs:
     needs: quality
     runs-on: ubuntu-latest
     env:
+      # Modo de pruebas explícito: los E2E corren sobre next dev, no sobre el build productivo.
       NEXT_PUBLIC_USE_MOCKS: "true"
       E2E_MOCK_AUTH: "true"
+      OMNIMARKET_TEST_ENV: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

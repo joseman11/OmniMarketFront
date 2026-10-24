@@ -1,4 +1,7 @@
 import { headers } from "next/headers";
+import { assertProductionConfig, isTestEnvironment } from "@/lib/env-guard";
+
+assertProductionConfig();
 
 export type BackendUser = {
   id: string;
@@ -14,7 +17,8 @@ export async function getBackendUser(): Promise<BackendUser | null> {
   try {
     const incoming = await headers();
     const cookie = incoming.get("cookie");
-    if (process.env.E2E_MOCK_AUTH === "true" && cookie?.split(";").some((part) => part.trim() === "omni_session=e2e-mock-session")) {
+    // Bypass E2E: requiere el flag y el modo de pruebas explícito; nunca en producción.
+    if (process.env.E2E_MOCK_AUTH === "true" && isTestEnvironment() && cookie?.split(";").some((part) => part.trim() === "omni_session=e2e-mock-session")) {
       return {
         id: "e2e-user",
         email: "e2e@omnimarket.mx",

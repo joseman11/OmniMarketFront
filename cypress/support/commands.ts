@@ -4,7 +4,7 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Cypress {
     interface Chainable {
-      /** Inicia sesión con la cookie de prueba aceptada sólo con E2E_MOCK_AUTH=true. */
+      /** Inicia sesión con la cookie de prueba aceptada sólo con E2E_MOCK_AUTH=true y OMNIMARKET_TEST_ENV=true. */
       login(): Chainable<void>;
     }
   }
