@@ -13,11 +13,13 @@ Configura primero y arranca PostgreSQL y la API siguiendo el README de `OmniMark
 
 En `OmniMarketBack/.env`, configura `API_ORIGIN=http://localhost:3000`, `WEB_ORIGIN=http://localhost:3000` y las credenciales `GOOGLE_*` y `GITHUB_*`. Después, desde esta carpeta:
 
-```powershell
-Copy-Item .env.example .env.local
-npm.cmd install
-npm.cmd run dev
+```bash
+cp .env.example .env.local
+npm install
+npm run dev
 ```
+
+En Windows (PowerShell): `Copy-Item .env.example .env.local`; si la política de ejecución bloquea `npm`, usa `npm.cmd`.
 
 `OMNIMARKET_API_URL` apunta al servicio backend (por defecto `http://localhost:3001`). Next.js reenvía OAuth por `/api/auth/*` y las llamadas de datos por `/backend/*`; las cookies quedan en el mismo origen del frontend. No configures `DATABASE_URL` aquí.
 

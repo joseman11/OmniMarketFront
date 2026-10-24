@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useSWRConfig } from "swr";
 import { toast } from "sonner";
 import { Box, Pencil, Plus, RefreshCw, Search, Tags, Trash2 } from "lucide-react";
@@ -102,6 +102,9 @@ export function CatalogManager() {
   const [productId, setProductId] = useState<string | null>(null);
   const [productForm, setProductForm] = useState<ProductForm>(EMPTY_PRODUCT);
   const [productError, setProductError] = useState("");
+  const [productLoading, setProductLoading] = useState(false);
+  // Evita que una respuesta tardía de getProduct pise el formulario de otro producto.
+  const productRequest = useRef(0);
   const [productDetail, setProductDetail] = useState<ApiProduct | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -152,6 +155,7 @@ export function CatalogManager() {
   };
 
   const openProductForm = async (product?: ApiProduct) => {
+    const request = ++productRequest.current;
     setProductError("");
     setProductId(product?.id ?? null);
     setProductForm(product ? {
@@ -164,11 +168,16 @@ export function CatalogManager() {
       isActive: product.isActive,
     } : { ...EMPTY_PRODUCT, categoryId: categories[0]?.id ?? "" });
     setProductOpen(true);
-    if (!product) return;
+    if (!product) {
+      setProductLoading(false);
+      return;
+    }
 
-    setPending(true);
+    // Los campos quedan deshabilitados mientras llega la versión fresca, así no se pierde lo que se escriba.
+    setProductLoading(true);
     try {
       const result = await api.getProduct(product.id);
+      if (request !== productRequest.current) return;
       const fresh = result.data.item;
       setProductForm({
         categoryId: fresh.categoryId,
@@ -180,10 +189,11 @@ export function CatalogManager() {
         isActive: fresh.isActive,
       });
     } catch (error) {
+      if (request !== productRequest.current) return;
       setProductOpen(false);
       toast.error("No se pudo cargar el producto", { description: messageFrom(error) });
     } finally {
-      setPending(false);
+      if (request === productRequest.current) setProductLoading(false);
     }
   };
 
@@ -361,10 +371,11 @@ export function CatalogManager() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={productOpen} onOpenChange={setProductOpen}>
+      <Dialog open={productOpen} onOpenChange={(open) => { if (!open) productRequest.current++; setProductOpen(open); }}>
         <DialogContent className="max-h-[90svh] overflow-y-auto border-white/10 bg-[#0e0e15] sm:max-w-xl">
           <DialogHeader><DialogTitle>{productId ? "Editar producto" : "Nuevo producto"}</DialogTitle><DialogDescription>Los pedidos guardan el precio y costo vigentes al momento de crearse.</DialogDescription></DialogHeader>
-          <form onSubmit={saveProduct} className="grid gap-4 sm:grid-cols-2">
+          <form onSubmit={saveProduct} className="grid gap-4">
+            <fieldset disabled={productLoading} aria-busy={productLoading} className="grid min-w-0 gap-4 disabled:opacity-60 sm:grid-cols-2">
             <div className="sm:col-span-2"><Field label="Categoría"><select value={productForm.categoryId} onChange={(event) => setProductForm((form) => ({ ...form, categoryId: event.target.value }))} className="h-9 w-full rounded-lg border border-white/10 bg-[#15151e] px-3 text-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-brand" required><option value="">Selecciona una categoría</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></Field></div>
             <TextField label="Nombre" value={productForm.name} onChange={(name) => setProductForm((form) => ({ ...form, name }))} placeholder="Producto" />
             <TextField label="SKU" value={productForm.sku} onChange={(sku) => setProductForm((form) => ({ ...form, sku }))} placeholder="SKU-001" />
@@ -372,8 +383,9 @@ export function CatalogManager() {
             <TextField label="Costo" type="number" min={0} step="0.01" value={productForm.cost} onChange={(cost) => setProductForm((form) => ({ ...form, cost }))} placeholder="0.00" />
             <TextField label="Existencia" type="number" min={0} max={2_000_000} step="1" value={productForm.stock} onChange={(stock) => setProductForm((form) => ({ ...form, stock }))} />
             <label className="flex items-center gap-2 self-end pb-2 text-sm text-white/70"><input type="checkbox" checked={productForm.isActive} onChange={(event) => setProductForm((form) => ({ ...form, isActive: event.target.checked }))} className="size-4 accent-[#7c5cff]" /> Disponible para pedidos</label>
-            {productError && <p role="alert" className="sm:col-span-2 text-sm text-danger">{productError}</p>}
-            <DialogFooter className="sm:col-span-2"><Button type="button" variant="ghost" onClick={() => setProductOpen(false)} disabled={pending}>Cancelar</Button><Button type="submit" disabled={pending || categories.length === 0}>{pending ? "Guardando…" : "Guardar producto"}</Button></DialogFooter>
+            </fieldset>
+            {productError && <p role="alert" className="text-sm text-danger">{productError}</p>}
+            <DialogFooter><Button type="button" variant="ghost" onClick={() => setProductOpen(false)} disabled={pending}>Cancelar</Button><Button type="submit" disabled={pending || productLoading || categories.length === 0}>{pending ? "Guardando…" : productLoading ? "Cargando…" : "Guardar producto"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
