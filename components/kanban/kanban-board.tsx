@@ -132,9 +132,28 @@ export function KanbanBoard() {
     return loc ? b![loc.status][loc.index] : undefined;
   }, []);
 
+  /** Timeouts de feedback visual: se cancelan al reprogramarse y al desmontar. */
+  const shakeTimer = useRef<number | undefined>(undefined);
+  const highlightTimer = useRef<number | undefined>(undefined);
+  useEffect(
+    () => () => {
+      window.clearTimeout(shakeTimer.current);
+      window.clearTimeout(highlightTimer.current);
+    },
+    [],
+  );
+
   const shake = (id: string) => {
     setShakingId(id);
-    window.setTimeout(() => setShakingId((s) => (s === id ? null : s)), 650);
+    window.clearTimeout(shakeTimer.current);
+    shakeTimer.current = window.setTimeout(() => setShakingId((s) => (s === id ? null : s)), 650);
+  };
+
+  /** El highlight pertenece al ID vigente: el timeout de un alta anterior no borra el de la nueva. */
+  const highlight = (id: string) => {
+    setHighlightId(id);
+    window.clearTimeout(highlightTimer.current);
+    highlightTimer.current = window.setTimeout(() => setHighlightId((h) => (h === id ? null : h)), 2200);
   };
 
   const reloadFromServer = useCallback(() => kanban.reload(), [kanban]);
@@ -359,8 +378,7 @@ export function KanbanBoard() {
     const res = outcome.data;
     refreshAnalytics();
     setCreateOpen(false);
-    setHighlightId(res.data.id);
-    window.setTimeout(() => setHighlightId(null), 2200);
+    highlight(res.data.id);
     toast.success(`Orden ${res.data.orderNumber} creada`, {
       description: `${STATUS_META[res.data.status].label} · ${input.customerName}`,
     });

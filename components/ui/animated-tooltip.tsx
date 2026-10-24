@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   motion,
   useTransform,
@@ -24,6 +24,14 @@ export const AnimatedTooltip = ({
   const x = useMotionValue(0);
   const animationFrameRef = useRef<number | null>(null);
 
+  // Cancela el RAF pendiente al desmontar.
+  useEffect(
+    () => () => {
+      if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current);
+    },
+    [],
+  );
+
   const rotate = useSpring(
     useTransform(x, [-100, 100], [-45, 45]),
     springConfig,
@@ -34,11 +42,12 @@ export const AnimatedTooltip = ({
   );
 
   const handleMouseMove = (event: any) => {
-    if (animationFrameRef.current) {
+    if (animationFrameRef.current !== null) {
       cancelAnimationFrame(animationFrameRef.current);
     }
 
     animationFrameRef.current = requestAnimationFrame(() => {
+      animationFrameRef.current = null;
       const halfWidth = event.target.offsetWidth / 2;
       x.set(event.nativeEvent.offsetX - halfWidth);
     });
