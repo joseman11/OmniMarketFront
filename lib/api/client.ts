@@ -49,7 +49,34 @@ export class ApiError extends Error {
   }
 }
 
-export type ApiResult<T> = { data: T; status: number; latencyMs: number; raw: unknown };
+/** Resultado validado. No conserva el JSON crudo: el estado de presentación sólo guarda el DTO parseado. */
+export type ApiResult<T> = { data: T; status: number; latencyMs: number };
+
+/** Máximo de páginas en vuelo al recorrer colecciones (contiene la ráfaga; no sustituye la paginación). */
+export const PAGE_CONCURRENCY = 4;
+
+/**
+ * Ejecuta task(0..count-1) con como mucho `limit` en paralelo y conserva el orden.
+ * Tras el primer fallo no se lanzan más tareas y se propaga ese error.
+ */
+export async function mapWithConcurrency<T>(count: number, limit: number, task: (index: number) => Promise<T>): Promise<T[]> {
+  const results = new Array<T>(count);
+  let next = 0;
+  let failed = false;
+  const worker = async () => {
+    while (!failed && next < count) {
+      const index = next++;
+      try {
+        results[index] = await task(index);
+      } catch (error) {
+        failed = true;
+        throw error;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(Math.max(limit, 1), count) }, worker));
+  return results;
+}
 
 function errorMessage(body: unknown, status: number) {
   const parsed = apiErrorSchema.safeParse(body);
@@ -71,7 +98,7 @@ async function request<S extends z.ZodTypeAny>(req: TransportRequest, schema: S)
     console.error("[api] Respuesta fuera de contrato", req.path, parsed.error.flatten());
     throw new ApiError("La respuesta del servidor no coincide con el contrato esperado", res.status, res.latencyMs, res.body);
   }
-  return { data: parsed.data, status: res.status, latencyMs: res.latencyMs, raw: res.body };
+  return { data: parsed.data, status: res.status, latencyMs: res.latencyMs };
 }
 
 async function requestNoContent(req: TransportRequest): Promise<ApiResult<null>> {
@@ -79,7 +106,7 @@ async function requestNoContent(req: TransportRequest): Promise<ApiResult<null>>
   if (res.status < 200 || res.status >= 300) {
     throw new ApiError(errorMessage(res.body, res.status), res.status, res.latencyMs, res.body);
   }
-  return { data: null, status: res.status, latencyMs: res.latencyMs, raw: res.body };
+  return { data: null, status: res.status, latencyMs: res.latencyMs };
 }
 
 function toCard(order: BackendOrder) {
@@ -125,27 +152,26 @@ async function getProductPage(page: number, options: ProductQuery = {}, signal?:
 
 async function getAllOrders(signal?: AbortSignal) {
   const first = await getOrderPage(1, signal);
-  const rest = await Promise.all(
-    Array.from({ length: Math.max(0, first.data.pagination.totalPages - 1) }, (_, index) => getOrderPage(index + 2, signal)),
+  const rest = await mapWithConcurrency(Math.max(0, first.data.pagination.totalPages - 1), PAGE_CONCURRENCY, (index) =>
+    getOrderPage(index + 2, signal),
   );
   return { orders: [...first.data.items, ...rest.flatMap((page) => page.data.items)], pages: [first, ...rest] };
 }
 
-async function getAnalyticsPages(filters: AnalyticsFilters, limit: number) {
+async function getAnalyticsPages(filters: AnalyticsFilters, limit: number, signal?: AbortSignal) {
   const first = await request(
-    { method: "GET", path: "/api/analytics", query: { page: 1, limit, from: filters.from, to: filters.to, categoryId: filters.categoryId } },
+    { method: "GET", path: "/api/analytics", query: { page: 1, limit, from: filters.from, to: filters.to, categoryId: filters.categoryId }, signal },
     analyticsResponseSchema,
   );
-  const rest = await Promise.all(
-    Array.from({ length: Math.max(0, first.data.meta.totalPages - 1) }, (_, index) =>
-      request(
-        {
-          method: "GET",
-          path: "/api/analytics",
-          query: { page: index + 2, limit, from: filters.from, to: filters.to, categoryId: filters.categoryId },
-        },
-        analyticsResponseSchema,
-      ),
+  const rest = await mapWithConcurrency(Math.max(0, first.data.meta.totalPages - 1), PAGE_CONCURRENCY, (index) =>
+    request(
+      {
+        method: "GET",
+        path: "/api/analytics",
+        query: { page: index + 2, limit, from: filters.from, to: filters.to, categoryId: filters.categoryId },
+        signal,
+      },
+      analyticsResponseSchema,
     ),
   );
   return [first, ...rest];
@@ -165,14 +191,13 @@ export const api = {
     );
   },
 
-  async getAnalyticsSeries(filters: AnalyticsFilters = {}) {
-    const pages = await getAnalyticsPages(filters, 100);
+  async getAnalyticsSeries(filters: AnalyticsFilters = {}, signal?: AbortSignal) {
+    const pages = await getAnalyticsPages(filters, 100, signal);
     const first = pages[0]!;
     return {
       ...first,
       data: { ...first.data, data: pages.flatMap((page) => page.data.data) },
       latencyMs: pages.reduce((sum, page) => sum + page.latencyMs, 0),
-      raw: pages.map((page) => page.raw),
     };
   },
 
@@ -191,7 +216,6 @@ export const api = {
       data: result,
       status: pages[0]!.status,
       latencyMs: pages.reduce((sum, page) => sum + page.latencyMs, 0),
-      raw: pages.map((page) => page.raw),
     };
   },
 
@@ -201,14 +225,13 @@ export const api = {
 
   async getProducts(options: ProductQuery = {}, signal?: AbortSignal) {
     const first = await getProductPage(1, options, signal);
-    const rest = await Promise.all(
-      Array.from({ length: Math.max(0, first.data.pagination.totalPages - 1) }, (_, index) => getProductPage(index + 2, options, signal)),
+    const rest = await mapWithConcurrency(Math.max(0, first.data.pagination.totalPages - 1), PAGE_CONCURRENCY, (index) =>
+      getProductPage(index + 2, options, signal),
     );
     return {
       ...first,
       data: { ...first.data, items: [...first.data.items, ...rest.flatMap((page) => page.data.items)] },
       latencyMs: [first, ...rest].reduce((sum, page) => sum + page.latencyMs, 0),
-      raw: [first, ...rest].map((page) => page.raw),
     };
   },
 
@@ -230,9 +253,9 @@ export const api = {
     return requestNoContent({ method: "DELETE", path: `/api/categories/${encodeURIComponent(id)}` });
   },
 
-  getProduct(id: string) {
+  getProduct(id: string, signal?: AbortSignal) {
     return request(
-      { method: "GET", path: `/api/products/${encodeURIComponent(id)}` },
+      { method: "GET", path: `/api/products/${encodeURIComponent(id)}`, signal },
       productDetailResponseSchema,
     );
   },
@@ -255,9 +278,9 @@ export const api = {
     return requestNoContent({ method: "DELETE", path: `/api/products/${encodeURIComponent(id)}` });
   },
 
-  getOrder(id: string) {
+  getOrder(id: string, signal?: AbortSignal) {
     return request(
-      { method: "GET", path: `/api/orders/${encodeURIComponent(id)}` },
+      { method: "GET", path: `/api/orders/${encodeURIComponent(id)}`, signal },
       orderDetailResponseSchema,
     );
   },

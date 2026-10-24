@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SWRConfig, type Cache, type SWRConfiguration } from "swr";
 import { ApiError } from "@/lib/api/client";
+import { SessionSignalContext } from "@/lib/hooks/session-signal";
 
 const CHANNEL_NAME = "omnimarket.session";
 const STORAGE_KEY = "omnimarket.session.event";
@@ -58,17 +59,28 @@ export function SessionScope({ userId, children }: { userId: string; children: R
   const [ended, setEnded] = useState(false);
   const endedRef = useRef(false);
   const channelRef = useRef<BroadcastChannel | null>(null);
+  // Se crea a demanda y se aborta sólo al terminar la sesión (no al desmontar: StrictMode).
+  const abortRef = useRef<AbortController | null>(null);
+  const getSignal = useCallback(() => {
+    abortRef.current ??= new AbortController();
+    return abortRef.current.signal;
+  }, []);
+  const abortReads = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  }, []);
 
   /** Vacía la caché y desmonta los consumidores (borradores incluidos) antes de navegar. */
   const terminate = useCallback(
     (navigate: () => void) => {
       if (endedRef.current) return;
       endedRef.current = true;
+      abortReads();
       clearCache(cache);
       setEnded(true);
       navigate();
     },
-    [cache],
+    [cache, abortReads],
   );
 
   const toLogin = useCallback(() => {
@@ -124,16 +136,19 @@ export function SessionScope({ userId, children }: { userId: string; children: R
   const api = useMemo<SessionApi>(
     () => ({
       beginSignOut: () => {
+        abortReads();
         clearCache(cache);
         broadcast(channelRef.current, { type: "logout" });
       },
     }),
-    [cache],
+    [cache, abortReads],
   );
 
   return (
     <SessionContext.Provider value={api}>
-      <SWRConfig value={config}>{ended ? null : children}</SWRConfig>
+      <SessionSignalContext.Provider value={getSignal}>
+        <SWRConfig value={config}>{ended ? null : children}</SWRConfig>
+      </SessionSignalContext.Provider>
     </SessionContext.Provider>
   );
 }

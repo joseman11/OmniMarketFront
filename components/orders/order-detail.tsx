@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, api } from "@/lib/api/client";
 import { isAnalyticsKey, useProducts } from "@/lib/hooks/use-api";
+import { useSessionSignal } from "@/lib/hooks/session-signal";
 import { useOrderDraft, type OrderDraftLine } from "@/lib/hooks/use-order-draft";
 import { useReturnFocus } from "@/lib/hooks/use-return-focus";
 import type { ApiProduct, BackendOrderDetail } from "@/lib/api/schemas";
@@ -69,7 +70,8 @@ function OrderLineEditor({
 }
 
 export function OrderDetail({ orderId }: { orderId: string }) {
-  const { data, error, isLoading, mutate } = useSWR(["order-detail", orderId], () => api.getOrder(orderId));
+  const signal = useSessionSignal();
+  const { data, error, isLoading, mutate } = useSWR(["order-detail", orderId], () => api.getOrder(orderId, signal()));
   const router = useRouter();
   const productsQuery = useProducts(true);
   const products = productsQuery.data?.data.items ?? [];
