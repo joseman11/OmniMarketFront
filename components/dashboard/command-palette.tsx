@@ -15,10 +15,12 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 import { NAV_ITEMS } from "@/components/dashboard/nav";
+import { useSessionScope } from "@/components/dashboard/session-scope";
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const session = useSessionScope();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -69,6 +71,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             value="cerrar sesion salir"
             onSelect={() => {
               onOpenChange(false);
+              session.beginSignOut();
               startTransition(() => signOutAction());
             }}
           >
