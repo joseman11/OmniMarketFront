@@ -21,7 +21,7 @@ npm run dev
 
 En Windows (PowerShell): `Copy-Item .env.example .env.local`; si la política de ejecución bloquea `npm`, usa `npm.cmd`.
 
-`OMNIMARKET_API_URL` apunta al servicio backend (por defecto `http://localhost:3001`). Next.js reenvía OAuth por `/api/auth/*` y las llamadas de datos por `/backend/*`; las cookies quedan en el mismo origen del frontend. No configures `DATABASE_URL` aquí.
+`OMNIMARKET_API_URL` apunta al servicio backend (por defecto `http://localhost:3001`). Next.js reenvía OAuth por `/api/auth/*`, las rutas oficiales de auditoría por `/api/test/*` y las llamadas de datos por `/backend/*`; las cookies quedan en el mismo origen del frontend. No configures `DATABASE_URL` aquí.
 
 | Script | Uso |
 |---|---|
@@ -30,6 +30,7 @@ En Windows (PowerShell): `Copy-Item .env.example .env.local`; si la política de
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Vitest con dos proyectos: `unit` (lógica pura en Node: formatos, finanzas, schemas, analítica, Kanban, guardas) y `components` (jsdom + React Testing Library + user-event + MSW: hooks y componentes con red simulada) |
 | `npm run test:e2e` | Playwright con backend mock local y autenticación de prueba aislada |
+| `npm run test:e2e:published-api` | Playwright contra `/api/test/*` del frontend local, proxificado al backend publicado |
 | `npm run test:cypress` | Cypress (levanta el dev server en :3100 y corre `cypress run`); `npm run cypress` lo abre en modo interactivo |
 
 ## Rutas
@@ -62,17 +63,23 @@ En Windows (PowerShell): `Copy-Item .env.example .env.local`; si la política de
 | Auditoría | `GET /api/health`, `GET /api/test/analytics`, `GET /api/test/kanban-status` y `GET /api/test/contract` |
 | Reset de fixtures | `POST /api/test/reset-data`; el navegador lo invoca mediante una ruta servidor que exige `TEST_RESET_ENABLED=true` (despliegue de fixtures) y comprueba origen, sesión ADMIN y `TEST_API_TOKEN`; sin el interruptor responde 404 |
 
-`NEXT_PUBLIC_USE_MOCKS=true` habilita el adaptador local para desarrollo visual y E2E (siempre sobre `next dev`); en Railway/Vercel debe ser `false`. Un build o arranque con `NODE_ENV=production` falla si `NEXT_PUBLIC_USE_MOCKS` o `E2E_MOCK_AUTH` están en `true` (`lib/env-guard.ts`). La sesión E2E sólo se acepta con `E2E_MOCK_AUTH=true` y el modo de pruebas explícito `OMNIMARKET_TEST_ENV=true`, que fijan `playwright.config.ts`, `npm run test:cypress` y la CI. Las mutaciones reales envían credenciales incluidas para la cookie HttpOnly. El token de reset es solo de servidor y no debe llevar prefijo `NEXT_PUBLIC_`.
+`NEXT_PUBLIC_USE_MOCKS=true` habilita el adaptador local para desarrollo visual y E2E (siempre sobre `next dev`); en producción debe ser `false`. Un build o arranque con `NODE_ENV=production` falla si `NEXT_PUBLIC_USE_MOCKS` o `E2E_MOCK_AUTH` están en `true` (`lib/env-guard.ts`). La sesión E2E sólo se acepta con `E2E_MOCK_AUTH=true` y el modo de pruebas explícito `OMNIMARKET_TEST_ENV=true`, que fijan `playwright.config.ts`, `npm run test:cypress` y la CI. Las mutaciones reales envían credenciales incluidas para la cookie HttpOnly. El token de reset es solo de servidor y no debe llevar prefijo `NEXT_PUBLIC_`.
 
-## Railway y CI/CD
+## Scraper de despliegues
 
-Conecta cada repositorio al servicio Railway correspondiente y deja que GitHub Actions valide lint, tipos, unitarias, build y E2E antes del despliegue. En el servicio frontend configura:
+`npm run scrape:production` inspecciona el frontend y backend publicados con solicitudes GET. Comprueba portada y login, redirecciones del dashboard sin sesión, salud de API, contratos y proxy, valores de analítica, tres muestras por origen bajo 300 ms, rechazo de `limit=101` y lectura del pedido de prueba en Kanban. No ejecuta reset ni modifica pedidos.
 
-- `OMNIMARKET_API_URL`: URL del backend accesible desde el servidor Next.js; usa la URL privada de Railway cuando esté disponible.
+Usa `npm run scrape:production -- --json` para obtener un informe JSON. Los orígenes, timeout, SLA y número de muestras se pueden ajustar con `--front`, `--back`, `--timeout-ms`, `--sla-ms` y `--repeats`; también se aceptan `OMNIMARKET_FRONT_URL` y `OMNIMARKET_API_URL`.
+
+## Vercel y CI/CD
+
+Conecta ambos repositorios a sus proyectos Vercel. En GitHub Actions el check requerido es `Frontend CI Gate` para el frontend y `Backend CI Gate` para el backend. En cada proyecto Vercel, agrega el check correspondiente en **Settings → Deployment Checks → GitHub Checks** para que una falla detenga la promoción a producción. En el proyecto frontend configura:
+
+- `OMNIMARKET_API_URL`: URL estable del backend accesible desde el servidor Next.js.
 - `NEXT_PUBLIC_USE_MOCKS=false`.
 - `TEST_API_TOKEN`: mismo valor privado que en backend, solo si se necesita habilitar el reset de fixtures.
 - `TEST_RESET_ENABLED=true`: interruptor explícito del reset de fixtures; déjalo sin definir en producción.
 
-En backend, configura `API_ORIGIN` y `WEB_ORIGIN` con el origen público del frontend. Registra Google/GitHub con callback `https://<dominio-frontend>/api/auth/{google|github}/callback`, y permite ese origen en CORS mediante `WEB_ORIGIN` o `CORS_ALLOWED_ORIGINS`. En Railway activa **Wait for CI**.
+En backend, configura `API_ORIGIN` y `WEB_ORIGIN` con el origen público del frontend. Registra Google/GitHub con callback `https://<dominio-frontend>/api/auth/{google|github}/callback`, y permite ese origen en CORS mediante `WEB_ORIGIN` o `CORS_ALLOWED_ORIGINS`.
 
-La configuración de variables no prueba que los proveedores OAuth, la base PostgreSQL o los servicios Railway estén provisionados; valida cada flujo en el entorno después de configurarlos.
+La configuración de variables no prueba que los proveedores OAuth, la base PostgreSQL o los servicios externos estén provisionados; valida cada flujo en el entorno después de configurarlos.

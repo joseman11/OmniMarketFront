@@ -78,3 +78,46 @@ jobs:
           name: cypress-screenshots
           path: cypress/screenshots/
           retention-days: 7
+
+  published-api:
+    name: E2E (API publicado)
+    needs: quality
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_USE_MOCKS: "false"
+      OMNIMARKET_API_URL: https://omni-market-back.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:e2e:published-api
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: published-api-playwright-report
+          path: test-results/
+          retention-days: 7
+
+  ci-gate:
+    name: Frontend CI Gate
+    if: always()
+    needs: [quality, e2e, cypress, published-api]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Require every check to pass
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+          CYPRESS_RESULT: ${{ needs.cypress.result }}
+          PUBLISHED_API_RESULT: ${{ needs.published-api.result }}
+        run: |
+          if [ "$QUALITY_RESULT" != "success" ] || [ "$E2E_RESULT" != "success" ] || [ "$CYPRESS_RESULT" != "success" ] || [ "$PUBLISHED_API_RESULT" != "success" ]; then
+            echo "One or more required frontend checks did not pass."
+            exit 1
+          fi
