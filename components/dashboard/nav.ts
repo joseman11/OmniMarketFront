@@ -1,4 +1,4 @@
-import { BarChart3, KanbanSquare, LayoutDashboard, Package, ShieldCheck, type LucideIcon } from "lucide-react";
+import { BarChart3, KanbanSquare, LayoutDashboard, Package, type LucideIcon } from "lucide-react";
 
 export type NavItem = { href: string; label: string; icon: LucideIcon; testId: string; description: string };
 
@@ -7,7 +7,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/analytics", label: "Analítica", icon: BarChart3, testId: "nav-analytics", description: "Ingresos, márgenes y tabla paginada" },
   { href: "/dashboard/kanban", label: "Kanban", icon: KanbanSquare, testId: "nav-kanban", description: "Flujo de órdenes con Drag & Drop" },
   { href: "/dashboard/catalog", label: "Catálogo", icon: Package, testId: "nav-catalog", description: "Productos y categorías" },
-  { href: "/dashboard/audit", label: "Auditoría", icon: ShieldCheck, testId: "nav-audit", description: "Prueba los endpoints /api/test/*" },
 ];
 
 export function isActive(pathname: string, href: string) {

@@ -44,7 +44,11 @@ export function findProduct(id: string): Product | undefined {
   return PRODUCTS.find((p) => p.id === id);
 }
 
+/** Color estable por categoría: las categorías reales (UUID) se reparten en la misma paleta validada. */
 export function categoryColor(nameOrId: string): string {
   const cat = CATEGORIES.find((c) => c.id === nameOrId || c.name === nameOrId);
-  return cat?.color ?? "#7c5cff";
+  if (cat) return cat.color;
+  let hash = 0;
+  for (const char of nameOrId) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return CATEGORIES[hash % CATEGORIES.length].color;
 }

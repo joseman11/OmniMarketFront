@@ -80,7 +80,6 @@ export function Footer() {
           <a href="#producto" className="hover:text-white">Producto</a>
           <a href="#analitica" className="hover:text-white">Analítica</a>
           <a href="#kanban" className="hover:text-white">Kanban</a>
-          <a href="#auditoria" className="hover:text-white">Auditoría</a>
           <Link href="/login" className="hover:text-white">Iniciar sesión</Link>
         </nav>
         <p className="font-mono text-xs text-white/35">© {new Date().getFullYear()} OmniMarket · MXN · es-MX</p>

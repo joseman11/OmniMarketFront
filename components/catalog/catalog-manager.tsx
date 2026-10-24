@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useSWRConfig } from "swr";
 import { toast } from "sonner";
 import { Box, Pencil, Plus, RefreshCw, Search, Tags, Trash2 } from "lucide-react";
@@ -84,7 +84,7 @@ function TextField({
 }
 
 export function CatalogManager() {
-  const { isAdmin } = useDashboardAccess();
+  const { canManageCatalog } = useDashboardAccess();
   const { mutate: refreshGlobal } = useSWRConfig();
   const categoriesQuery = useCategories();
   const productsQuery = useProducts(true);
@@ -102,6 +102,9 @@ export function CatalogManager() {
   const [productId, setProductId] = useState<string | null>(null);
   const [productForm, setProductForm] = useState<ProductForm>(EMPTY_PRODUCT);
   const [productError, setProductError] = useState("");
+  const [productLoading, setProductLoading] = useState(false);
+  // Evita que una respuesta tardía de getProduct pise el formulario de otro producto.
+  const productRequest = useRef(0);
   const [productDetail, setProductDetail] = useState<ApiProduct | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -152,6 +155,7 @@ export function CatalogManager() {
   };
 
   const openProductForm = async (product?: ApiProduct) => {
+    const request = ++productRequest.current;
     setProductError("");
     setProductId(product?.id ?? null);
     setProductForm(product ? {
@@ -164,11 +168,16 @@ export function CatalogManager() {
       isActive: product.isActive,
     } : { ...EMPTY_PRODUCT, categoryId: categories[0]?.id ?? "" });
     setProductOpen(true);
-    if (!product) return;
+    if (!product) {
+      setProductLoading(false);
+      return;
+    }
 
-    setPending(true);
+    // Los campos quedan deshabilitados mientras llega la versión fresca, así no se pierde lo que se escriba.
+    setProductLoading(true);
     try {
       const result = await api.getProduct(product.id);
+      if (request !== productRequest.current) return;
       const fresh = result.data.item;
       setProductForm({
         categoryId: fresh.categoryId,
@@ -180,10 +189,11 @@ export function CatalogManager() {
         isActive: fresh.isActive,
       });
     } catch (error) {
+      if (request !== productRequest.current) return;
       setProductOpen(false);
       toast.error("No se pudo cargar el producto", { description: messageFrom(error) });
     } finally {
-      setPending(false);
+      if (request === productRequest.current) setProductLoading(false);
     }
   };
 
@@ -256,7 +266,7 @@ export function CatalogManager() {
             <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={pending}>
               <RefreshCw className="size-3.5" /> Actualizar
             </Button>
-            {isAdmin && (
+            {canManageCatalog && (
               <Button size="sm" onClick={() => tab === "products" ? void openProductForm() : openCategoryForm()}>
                 <Plus className="size-3.5" /> {tab === "products" ? "Nuevo producto" : "Nueva categoría"}
               </Button>
@@ -266,7 +276,7 @@ export function CatalogManager() {
       />
 
       <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
-        <Panel title="Catálogo" description={isAdmin ? "Gestión de inventario" : "Consulta de inventario"} className="h-fit">
+        <Panel title="Catálogo" description={canManageCatalog ? "Gestión de inventario" : "Consulta de inventario"} className="h-fit">
           <div className="grid gap-2" role="tablist" aria-label="Secciones del catálogo">
             <button
               type="button"
@@ -289,7 +299,7 @@ export function CatalogManager() {
               <span className="font-mono text-xs text-white/40">{categories.length}</span>
             </button>
           </div>
-          {!isAdmin && <p className="mt-4 text-xs leading-relaxed text-white/40">Solo las cuentas administradoras pueden modificar el catálogo.</p>}
+          {!canManageCatalog && <p className="mt-4 text-xs leading-relaxed text-white/40">Esta cuenta solo puede consultar el catálogo.</p>}
         </Panel>
 
         <Panel
@@ -323,8 +333,8 @@ export function CatalogManager() {
                       <td className="px-4 py-3"><span className={cn("rounded-full border px-2 py-1 text-[10px]", product.isActive ? "border-success/25 bg-success/10 text-success" : "border-white/10 bg-white/[0.03] text-white/40")}>{product.isActive ? "Activo" : "Inactivo"}</span></td>
                       <td className="px-5 py-3"><div className="flex justify-end gap-1">
                         <Button variant="ghost" size="sm" onClick={() => void showProduct(product.id)}>Ver</Button>
-                        {isAdmin && <Button variant="ghost" size="icon-sm" aria-label={`Editar ${product.name}`} onClick={() => void openProductForm(product)}><Pencil className="size-3.5" /></Button>}
-                        {isAdmin && <Button variant="ghost" size="icon-sm" aria-label={`Eliminar ${product.name}`} onClick={() => setDeleteTarget({ kind: "products", id: product.id, label: product.name })}><Trash2 className="size-3.5 text-danger" /></Button>}
+                        {canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Editar ${product.name}`} onClick={() => void openProductForm(product)}><Pencil className="size-3.5" /></Button>}
+                        {canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Eliminar ${product.name}`} onClick={() => setDeleteTarget({ kind: "products", id: product.id, label: product.name })}><Trash2 className="size-3.5 text-danger" /></Button>}
                       </div></td>
                     </tr>
                   ))}
@@ -339,7 +349,7 @@ export function CatalogManager() {
                 <tbody className="divide-y divide-white/[0.05]">
                   {filteredCategories.map((category) => {
                     const count = products.filter((product) => product.categoryId === category.id).length;
-                    return <tr key={category.id} className="transition hover:bg-white/[0.025]"><td className="px-5 py-3 font-medium text-white">{category.name}</td><td className="px-4 py-3 font-mono text-xs text-white/45">{category.slug}</td><td className="px-4 py-3 font-mono text-white/60">{count}</td><td className="px-5 py-3"><div className="flex justify-end gap-1">{isAdmin && <Button variant="ghost" size="icon-sm" aria-label={`Editar ${category.name}`} onClick={() => openCategoryForm(category)}><Pencil className="size-3.5" /></Button>}{isAdmin && <Button variant="ghost" size="icon-sm" aria-label={`Eliminar ${category.name}`} onClick={() => setDeleteTarget({ kind: "categories", id: category.id, label: category.name })}><Trash2 className="size-3.5 text-danger" /></Button>}</div></td></tr>;
+                    return <tr key={category.id} className="transition hover:bg-white/[0.025]"><td className="px-5 py-3 font-medium text-white">{category.name}</td><td className="px-4 py-3 font-mono text-xs text-white/45">{category.slug}</td><td className="px-4 py-3 font-mono text-white/60">{count}</td><td className="px-5 py-3"><div className="flex justify-end gap-1">{canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Editar ${category.name}`} onClick={() => openCategoryForm(category)}><Pencil className="size-3.5" /></Button>}{canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Eliminar ${category.name}`} onClick={() => setDeleteTarget({ kind: "categories", id: category.id, label: category.name })}><Trash2 className="size-3.5 text-danger" /></Button>}</div></td></tr>;
                   })}
                 </tbody>
               </table>
@@ -361,10 +371,11 @@ export function CatalogManager() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={productOpen} onOpenChange={setProductOpen}>
+      <Dialog open={productOpen} onOpenChange={(open) => { if (!open) productRequest.current++; setProductOpen(open); }}>
         <DialogContent className="max-h-[90svh] overflow-y-auto border-white/10 bg-[#0e0e15] sm:max-w-xl">
           <DialogHeader><DialogTitle>{productId ? "Editar producto" : "Nuevo producto"}</DialogTitle><DialogDescription>Los pedidos guardan el precio y costo vigentes al momento de crearse.</DialogDescription></DialogHeader>
-          <form onSubmit={saveProduct} className="grid gap-4 sm:grid-cols-2">
+          <form onSubmit={saveProduct} className="grid gap-4">
+            <fieldset disabled={productLoading} aria-busy={productLoading} className="grid min-w-0 gap-4 disabled:opacity-60 sm:grid-cols-2">
             <div className="sm:col-span-2"><Field label="Categoría"><select value={productForm.categoryId} onChange={(event) => setProductForm((form) => ({ ...form, categoryId: event.target.value }))} className="h-9 w-full rounded-lg border border-white/10 bg-[#15151e] px-3 text-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-brand" required><option value="">Selecciona una categoría</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></Field></div>
             <TextField label="Nombre" value={productForm.name} onChange={(name) => setProductForm((form) => ({ ...form, name }))} placeholder="Producto" />
             <TextField label="SKU" value={productForm.sku} onChange={(sku) => setProductForm((form) => ({ ...form, sku }))} placeholder="SKU-001" />
@@ -372,8 +383,9 @@ export function CatalogManager() {
             <TextField label="Costo" type="number" min={0} step="0.01" value={productForm.cost} onChange={(cost) => setProductForm((form) => ({ ...form, cost }))} placeholder="0.00" />
             <TextField label="Existencia" type="number" min={0} max={2_000_000} step="1" value={productForm.stock} onChange={(stock) => setProductForm((form) => ({ ...form, stock }))} />
             <label className="flex items-center gap-2 self-end pb-2 text-sm text-white/70"><input type="checkbox" checked={productForm.isActive} onChange={(event) => setProductForm((form) => ({ ...form, isActive: event.target.checked }))} className="size-4 accent-[#7c5cff]" /> Disponible para pedidos</label>
-            {productError && <p role="alert" className="sm:col-span-2 text-sm text-danger">{productError}</p>}
-            <DialogFooter className="sm:col-span-2"><Button type="button" variant="ghost" onClick={() => setProductOpen(false)} disabled={pending}>Cancelar</Button><Button type="submit" disabled={pending || categories.length === 0}>{pending ? "Guardando…" : "Guardar producto"}</Button></DialogFooter>
+            </fieldset>
+            {productError && <p role="alert" className="text-sm text-danger">{productError}</p>}
+            <DialogFooter><Button type="button" variant="ghost" onClick={() => setProductOpen(false)} disabled={pending}>Cancelar</Button><Button type="submit" disabled={pending || productLoading || categories.length === 0}>{pending ? "Guardando…" : productLoading ? "Cargando…" : "Guardar producto"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -382,7 +394,7 @@ export function CatalogManager() {
         <DialogContent className="border-white/10 bg-[#0e0e15] sm:max-w-md">
           <DialogHeader><DialogTitle>Detalle del producto</DialogTitle><DialogDescription>Consulta directa del registro en el backend.</DialogDescription></DialogHeader>
           {detailLoading ? <Skeleton className="h-32 w-full" /> : productDetail ? <div className="grid grid-cols-2 gap-3 text-sm"><div className="text-white/40">Nombre</div><div className="text-right text-white">{productDetail.name}</div><div className="text-white/40">SKU</div><div className="text-right font-mono text-white">{productDetail.sku}</div><div className="text-white/40">Categoría</div><div className="text-right text-white">{productDetail.category.name}</div><div className="text-white/40">Precio</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.price)}</div><div className="text-white/40">Costo</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.cost)}</div><div className="text-white/40">Existencia</div><div className="text-right font-mono text-white">{productDetail.stock}</div></div> : null}
-          <DialogFooter>{isAdmin && productDetail && <Button variant="outline" onClick={() => { setDetailOpen(false); void openProductForm(productDetail); }}><Pencil className="size-3.5" /> Editar</Button>}<Button variant="ghost" onClick={() => setDetailOpen(false)}>Cerrar</Button></DialogFooter>
+          <DialogFooter>{canManageCatalog && productDetail && <Button variant="outline" onClick={() => { setDetailOpen(false); void openProductForm(productDetail); }}><Pencil className="size-3.5" /> Editar</Button>}<Button variant="ghost" onClick={() => setDetailOpen(false)}>Cerrar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

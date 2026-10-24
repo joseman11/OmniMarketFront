@@ -319,7 +319,3 @@ export const api = {
     );
   },
 };
-
-export async function rawRequest(req: TransportRequest) {
-  return transport(req);
-}

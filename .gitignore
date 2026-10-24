@@ -46,3 +46,8 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /tests/e2e/.auth/
+
+# cypress
+/cypress/screenshots/
+/cypress/videos/
+/cypress/downloads/

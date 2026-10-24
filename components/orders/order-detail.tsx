@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, api } from "@/lib/api/client";
-import { useProducts } from "@/lib/hooks/use-api";
+import { isAnalyticsKey, useProducts } from "@/lib/hooks/use-api";
 import type { ApiProduct, BackendOrderDetail, UpdateOrderItemsInput } from "@/lib/api/schemas";
 import { formatCurrency, formatPercent, formatRelativeTime } from "@/lib/format";
 import { marginRatio } from "@/lib/finance";
@@ -107,7 +107,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
     try {
       await api.updateOrderItems(order.id, input);
       setEditing(false);
-      await Promise.all([mutate(), mutateGlobal("kanban-board")]);
+      await Promise.all([mutate(), mutateGlobal("kanban-board"), mutateGlobal(isAnalyticsKey)]);
       toast.success("Artículos de la orden actualizados", { description: "El total y margen se recalcularon con los precios actuales." });
     } catch (saveError) {
       if (saveError instanceof ApiError && saveError.isConflict) await mutate();
@@ -123,7 +123,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
     try {
       await api.deleteOrder(order.id);
       setDeleteOpen(false);
-      await mutateGlobal("kanban-board");
+      await Promise.all([mutateGlobal("kanban-board"), mutateGlobal(isAnalyticsKey)]);
       toast.success(`Orden ${order.orderNumber} eliminada`);
       router.push("/dashboard/kanban");
     } catch (deleteError) {

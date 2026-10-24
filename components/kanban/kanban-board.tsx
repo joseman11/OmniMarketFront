@@ -18,8 +18,10 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
-import { FlaskConical, Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useSWRConfig } from "swr";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/dashboard/panel";
 import { KanbanBoardSkeleton } from "@/components/dashboard/skeletons";
@@ -31,9 +33,8 @@ import { CardFace } from "@/components/kanban/kanban-card";
 import { KanbanColumn } from "@/components/kanban/kanban-column";
 import { Button } from "@/components/ui/button";
 import { ApiError, api } from "@/lib/api/client";
-import { USE_MOCKS } from "@/lib/api/config";
 import { ORDER_STATUSES, type CreateOrderInput, type KanbanCard, type OrderStatus } from "@/lib/api/schemas";
-import { useKanbanBoard, useProducts } from "@/lib/hooks/use-api";
+import { isAnalyticsKey, useKanbanBoard, useProducts } from "@/lib/hooks/use-api";
 import {
   findContainer,
   insertCard,
@@ -58,41 +59,9 @@ type Origin = { status: OrderStatus; index: number; version: number; snapshot: B
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Error desconocido");
 
-function MockFailureToggle() {
-  const [on, setOn] = useState(false);
-  useEffect(() => {
-    void import("@/lib/api/mock/server").then((m) => setOn(m.getMockControls().failMutations));
-  }, []);
-  const toggle = async () => {
-    const m = await import("@/lib/api/mock/server");
-    const next = !on;
-    m.setMockControls({ failMutations: next });
-    setOn(next);
-    toast.info(next ? "Modo fallo activado" : "Modo fallo desactivado", {
-      description: next
-        ? "Las próximas mutaciones responderán HTTP 500 para que veas el rollback."
-        : "Las mutaciones vuelven a guardarse normalmente.",
-    });
-  };
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-pressed={on}
-      data-testid="mock-fail-toggle"
-      className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs transition",
-        on ? "border-danger/40 bg-danger/10 text-danger" : "border-white/10 text-white/50 hover:text-white",
-      )}
-      title="Sólo modo mock: fuerza errores 500 en las mutaciones"
-    >
-      <FlaskConical className="size-3.5" /> Simular fallo {on ? "ON" : "OFF"}
-    </button>
-  );
-}
-
 export function KanbanBoard() {
   const { data, error, mutate, isValidating } = useKanbanBoard();
+  const { mutate: mutateGlobal } = useSWRConfig();
   const productsQuery = useProducts();
   const router = useRouter();
   const pathname = usePathname();
@@ -104,6 +73,8 @@ export function KanbanBoard() {
   const originRef = useRef<Origin | null>(null);
 
   const [activeId, setActiveId] = useState<string | null>(null);
+  /** Punto de agarre dentro de la tarjeta (para que la inclinación no lo desplace). */
+  const [grabOrigin, setGrabOrigin] = useState<{ x: string; y: string }>({ x: "50%", y: "50%" });
   const [shakingId, setShakingId] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -170,14 +141,26 @@ export function KanbanBoard() {
     if (fresh) replace(toBoardState(fresh));
   }, [mutate, replace]);
 
+  /** Los cambios de pedidos recalculan métricas en el backend: invalida KPIs y gráficas cacheadas. */
+  const refreshAnalytics = useCallback(() => void mutateGlobal(isAnalyticsKey), [mutateGlobal]);
+
   /* ─────────────── Drag & Drop ─────────────── */
 
-  const onDragStart = ({ active }: DragStartEvent) => {
+  const onDragStart = ({ active, activatorEvent }: DragStartEvent) => {
     const b = boardRef.current;
     const id = String(active.id);
     const loc = b && locate(b, id);
     if (!b || !loc) return;
     originRef.current = { ...loc, version: b[loc.status][loc.index]!.version, snapshot: b };
+    // active.rect aún no está medido en onDragStart: se mide el nodo de la tarjeta agarrada.
+    const ev = activatorEvent as PointerEvent | MouseEvent | KeyboardEvent;
+    const node = ev.target instanceof Element ? ev.target.closest("[data-version]") : null;
+    const rect = node?.getBoundingClientRect();
+    setGrabOrigin(
+      rect && "clientX" in ev
+        ? { x: `${ev.clientX - rect.left}px`, y: `${ev.clientY - rect.top}px` }
+        : { x: "50%", y: "50%" },
+    );
     setActiveId(id);
   };
 
@@ -203,6 +186,7 @@ export function KanbanBoard() {
     try {
       const res = await api.moveOrder(id, { toStatus, toPosition: toIndex, version: origin.version });
       await reloadFromServer();
+      refreshAnalytics();
       toast.success(`${card?.orderNumber ?? "Orden"} → ${label}`, {
         description: `Guardado en ${Math.round(res.latencyMs)} ms`,
       });
@@ -301,6 +285,7 @@ export function KanbanBoard() {
     try {
       const res = await api.bulkUpdate({ ids, patch: { status: bulkTarget } });
       await reloadFromServer();
+      refreshAnalytics();
       setSelected(new Set());
       setBulkTarget(null);
       toast.success(`${res.data.updated} órdenes actualizadas`, { description: `Nuevo estado: ${label}` });
@@ -320,6 +305,7 @@ export function KanbanBoard() {
       const res = await api.createOrder(input);
       apply((b) => insertCard(b, res.data, res.data.position));
       syncCache();
+      refreshAnalytics();
       setCreateOpen(false);
       setHighlightId(res.data.id);
       window.setTimeout(() => setHighlightId(null), 2200);
@@ -339,11 +325,9 @@ export function KanbanBoard() {
     <div className="mx-auto max-w-[1600px]">
       <PageHeader
         title="Kanban"
-        accent="de órdenes"
         description="Arrastra para cambiar el estado o reordenar. Usa espacio + flechas para moverlas con el teclado."
         actions={
           <>
-            {USE_MOCKS && <MockFailureToggle />}
             <Button
               variant="outline"
               size="sm"
@@ -403,13 +387,25 @@ export function KanbanBoard() {
                 />
               ))}
             </div>
-            <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
-              {activeCard ? (
-                <motion.div initial={{ rotate: 0, scale: 1 }} animate={{ rotate: 3, scale: 1.04 }} className="cursor-grabbing">
-                  <CardFace card={activeCard} selected={selected.has(activeCard.id)} overlay />
-                </motion.div>
-              ) : null}
-            </DragOverlay>
+            {/* Portal a <body>: la transición de página (template.tsx) deja transform/filter
+                en un ancestro, que se vuelve el containing block del overlay (position: fixed)
+                y lo desplazaba respecto al cursor. */}
+            {typeof document !== "undefined" &&
+              createPortal(
+                <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
+                  {activeCard ? (
+                    <motion.div
+                      initial={{ rotate: 0, scale: 1 }}
+                      animate={{ rotate: 3, scale: 1.04 }}
+                      style={{ originX: grabOrigin.x, originY: grabOrigin.y }}
+                      className="cursor-grabbing"
+                    >
+                      <CardFace card={activeCard} selected={selected.has(activeCard.id)} overlay />
+                    </motion.div>
+                  ) : null}
+                </DragOverlay>,
+                document.body,
+              )}
           </DndContext>
         </>
       )}

@@ -43,7 +43,7 @@ export function DashboardShell({ user, children }: { user: ShellUser; children: 
   const section = titleFor(pathname);
 
   return (
-    <DashboardAccessProvider isAdmin={user.isAdmin}>
+    <DashboardAccessProvider canManageCatalog={user.canManageCatalog}>
     <div className="relative flex min-h-[100svh] bg-ink-2">
       <div aria-hidden="true" className="bg-grid pointer-events-none fixed inset-0 opacity-[0.35] [--grid-size:56px] [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
 

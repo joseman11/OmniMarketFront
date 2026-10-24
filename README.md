@@ -1,6 +1,6 @@
 # OmniMarket Operations Hub — Frontend
 
-Dashboard en español para operaciones de e-commerce: analítica, Kanban con arrastre y actualización optimista, auditoría de API y acceso OAuth con Google/GitHub. La sesión y los datos pertenecen al backend.
+Dashboard en español para operaciones de e-commerce: analítica, Kanban con arrastre y actualización optimista, y acceso OAuth con Google/GitHub. La sesión y los datos pertenecen al backend.
 
 **Stack:** Next.js 15 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · dnd-kit · Recharts · SWR · React Hook Form · Zod · Vitest · Playwright.
 
@@ -13,11 +13,13 @@ Configura primero y arranca PostgreSQL y la API siguiendo el README de `OmniMark
 
 En `OmniMarketBack/.env`, configura `API_ORIGIN=http://localhost:3000`, `WEB_ORIGIN=http://localhost:3000` y las credenciales `GOOGLE_*` y `GITHUB_*`. Después, desde esta carpeta:
 
-```powershell
-Copy-Item .env.example .env.local
-npm.cmd install
-npm.cmd run dev
+```bash
+cp .env.example .env.local
+npm install
+npm run dev
 ```
+
+En Windows (PowerShell): `Copy-Item .env.example .env.local`; si la política de ejecución bloquea `npm`, usa `npm.cmd`.
 
 `OMNIMARKET_API_URL` apunta al servicio backend (por defecto `http://localhost:3001`). Next.js reenvía OAuth por `/api/auth/*` y las llamadas de datos por `/backend/*`; las cookies quedan en el mismo origen del frontend. No configures `DATABASE_URL` aquí.
 
@@ -28,6 +30,7 @@ npm.cmd run dev
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Unitarias: formatos, finanzas, schemas, analítica y Kanban |
 | `npm run test:e2e` | Playwright con backend mock local y autenticación de prueba aislada |
+| `npm run test:cypress` | Cypress (levanta el dev server en :3100 y corre `cypress run`); `npm run cypress` lo abre en modo interactivo |
 
 ## Rutas
 
@@ -40,7 +43,6 @@ npm.cmd run dev
 | `/dashboard/kanban` | Sesión backend | Cinco estados, arrastre, bulk y creación de órdenes |
 | `/dashboard/catalog` | Sesión backend | Productos y categorías; lectura para usuarios y gestión para administradores |
 | `/dashboard/orders/:id` | Sesión backend | Detalle, edición versionada de artículos y eliminación de una orden |
-| `/dashboard/audit` | Sesión backend | Respuestas y latencia de la API, rutas de soporte y reset solo para administradores |
 
 `middleware.ts` comprueba la presencia de `omni_session`; el layout consulta `GET /api/auth/session` al backend antes de renderizar el dashboard. OAuth, lectura y cierre de sesión usan la cookie HttpOnly del backend. Google y GitHub se configuran únicamente en el backend.
 

@@ -10,7 +10,7 @@ test.describe("Catálogo y detalle de órdenes", () => {
 
   test("administra categorías y productos desde el catálogo", async ({ page }) => {
     await page.goto("/dashboard/catalog");
-    await expect(page.getByRole("heading", { name: "Catálogo" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Catálogo", exact: true })).toBeVisible();
 
     await page.getByRole("tab", { name: /Categorías/ }).click();
     await page.getByRole("button", { name: "Nueva categoría" }).click();
