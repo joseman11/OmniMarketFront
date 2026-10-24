@@ -5,7 +5,6 @@ import {
   KanbanSquare,
   LayoutDashboard,
   Search,
-  ShieldCheck,
 } from "lucide-react";
 import { MiniBars } from "@/components/charts/mini-bars";
 import { SegmentedBar } from "@/components/charts/segmented-bar";
@@ -43,7 +42,6 @@ export function DashboardMockup() {
           {[
             [BarChart3, "Analítica"],
             [KanbanSquare, "Kanban"],
-            [ShieldCheck, "Auditoría"],
           ].map(([Icon, label]) => {
             const I = Icon as typeof BarChart3;
             return (

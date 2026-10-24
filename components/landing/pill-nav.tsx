@@ -10,7 +10,6 @@ const LINKS = [
   { href: "#producto", label: "Producto" },
   { href: "#analitica", label: "Analítica" },
   { href: "#kanban", label: "Kanban" },
-  { href: "#auditoria", label: "Auditoría" },
 ];
 
 export function PillNav() {

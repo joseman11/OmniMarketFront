@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { readE2ESecret } from "./tests/e2e/secret";
 
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 
@@ -26,7 +27,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       NEXT_PUBLIC_USE_MOCKS: "true",
-      AUTH_SECRET: process.env.AUTH_SECRET ?? "e2e-only-secret-not-for-production-000000",
+      AUTH_SECRET: readE2ESecret(),
     },
   },
 });

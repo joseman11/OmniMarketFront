@@ -1,6 +1,6 @@
 # OmniMarket Operations Hub — Frontend
 
-Dashboard analítico de e-commerce con Kanban (Drag & Drop + mutación optimista), auditoría de API y autenticación OAuth (Google/GitHub). UI en español (es-MX), moneda MXN.
+Dashboard analítico de e-commerce con Kanban (Drag & Drop + mutación optimista) y autenticación OAuth (Google/GitHub). UI en español (es-MX), moneda MXN.
 
 **Stack:** Next.js 15 (App Router) · TypeScript strict · Tailwind CSS v4 · shadcn/ui · Aceternity UI · motion · dnd-kit · recharts · SWR · react-hook-form + Zod · Auth.js v5 · Vitest · Playwright.
 
@@ -24,12 +24,11 @@ npm run dev
 
 | Ruta | Acceso | Contenido |
 |---|---|---|
-| `/` | pública | Landing: hero con Webcam Pixel Grid (+ fallback ambiental), stack, preview, features, bento, órdenes, auditoría, CTA |
+| `/` | pública | Landing: hero con Webcam Pixel Grid (+ fallback ambiental), stack, preview, features, órdenes, CTA |
 | `/login` | pública | Sólo “Continuar con Google / GitHub”. Toasts para `?error=` |
 | `/dashboard` | protegida | KPIs, barra segmentada por categoría, ingresos por día, últimas órdenes |
 | `/dashboard/analytics` | protegida | Filtros, gráficas y tabla paginada en servidor (`?page=&limit=`) con latencia |
 | `/dashboard/kanban` | protegida | 5 columnas `OrderStatus`, DnD, rollback, bulk atómico, crear orden |
-| `/dashboard/audit` | protegida | Prueba de `/api/test/*` con código HTTP, latencia y JSON |
 
 Protección doble: `middleware.ts` (sólo presencia de cookie, edge) + `auth()` en `app/dashboard/layout.tsx`.
 
