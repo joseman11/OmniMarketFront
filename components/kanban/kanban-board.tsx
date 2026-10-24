@@ -32,7 +32,7 @@ import { CreateOrderDialog } from "@/components/kanban/create-order-dialog";
 import { CardFace } from "@/components/kanban/kanban-card";
 import { KanbanColumn } from "@/components/kanban/kanban-column";
 import { Button } from "@/components/ui/button";
-import { ApiError, api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/client";
 import { ORDER_STATUSES, type CreateOrderInput, type KanbanCard, type OrderStatus } from "@/lib/api/schemas";
 import { useKanbanController } from "@/components/kanban/use-kanban-controller";
 import { isAnalyticsKey, useProducts } from "@/lib/hooks/use-api";
@@ -295,21 +295,42 @@ export function KanbanBoard() {
   }, []);
 
   const confirmBulk = async () => {
-    if (!bulkTarget) return;
+    if (!bulkTarget || bulkPending) return;
     const ids = [...selected];
     const label = STATUS_META[bulkTarget].label;
     setBulkPending(true);
     try {
-      const res = await api.bulkUpdate({ ids, patch: { status: bulkTarget } });
-      await reloadFromServer();
-      refreshAnalytics();
-      setSelected(new Set());
-      setBulkTarget(null);
-      toast.success(`${res.data.updated} órdenes actualizadas`, { description: `Nuevo estado: ${label}` });
-    } catch (e) {
-      toast.error("Actualización masiva fallida", {
-        description: `No se aplicó ningún cambio (operación atómica). ${errMsg(e)}`,
-      });
+      const outcome = await kanban.bulk({ ids, patch: { status: bulkTarget } });
+      if (outcome.blocked) {
+        toast.info("Hay una operación en curso en el tablero", { description: "Espera a que termine e inténtalo de nuevo." });
+        return;
+      }
+      if (outcome.write === "saved") {
+        refreshAnalytics();
+        setSelected(new Set());
+        setBulkTarget(null);
+        if (outcome.synchronized) {
+          toast.success(`${outcome.data.data.updated} órdenes actualizadas`, { description: `Nuevo estado: ${label}` });
+        } else {
+          toast.warning(`${outcome.data.data.updated} órdenes actualizadas`, {
+            description: `Nuevo estado: ${label}. Guardado; sincronización pendiente.`,
+          });
+        }
+        return;
+      }
+      if (outcome.write === "rejected") {
+        // 4xx: el backend rechazó la transacción completa.
+        toast.error("Actualización masiva rechazada", {
+          description: `No se aplicó ningún cambio (operación atómica). ${errMsg(outcome.error)}`,
+        });
+      } else {
+        // 5xx/red: el cliente no puede afirmar que el servidor no aplicó el cambio.
+        toast.error("No se pudo confirmar la actualización masiva", {
+          description: outcome.synchronized
+            ? `${errMsg(outcome.error)}. El tablero muestra el estado actual del servidor.`
+            : `${errMsg(outcome.error)}. No sabemos si se aplicó; sincroniza el tablero antes de reintentar.`,
+        });
+      }
     } finally {
       setBulkPending(false);
     }

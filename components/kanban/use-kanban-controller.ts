@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { ApiError, api, type ApiResult } from "@/lib/api/client";
-import type { CreateOrderInput, KanbanBoard, KanbanCard, OrderStatus } from "@/lib/api/schemas";
+import type { BulkUpdateInput, CreateOrderInput, KanbanBoard, KanbanCard, OrderStatus } from "@/lib/api/schemas";
 import { useKanbanBoard } from "@/lib/hooks/use-api";
 import { emptyBoard, insertCard, moveCard, patchCard, toBoardState, toKanbanBoard } from "@/lib/kanban";
 
@@ -135,6 +135,29 @@ export function useKanbanController() {
     [mutate, setPhase, synchronize],
   );
 
+  /** Cambio masivo de estado: escritura atómica en backend seguida de una lectura que propaga su fallo. */
+  const bulk = useCallback(
+    async (input: BulkUpdateInput): Promise<WriteOutcome<ApiResult<{ updated: number }>>> => {
+      if (phaseRef.current !== "idle") return { blocked: true };
+      setPhase("saving");
+      let result: ApiResult<{ updated: number }>;
+      try {
+        result = await api.bulkUpdate(input);
+      } catch (error) {
+        const write = classifyWriteError(error);
+        if (write === "rejected") {
+          setPhase("idle");
+          return { blocked: false, write, error, synchronized: true };
+        }
+        const syncError = await synchronize();
+        return { blocked: false, write, error, synchronized: syncError === null, syncError: syncError ?? undefined };
+      }
+      const syncError = await synchronize();
+      return { blocked: false, write: "saved", data: result, synchronized: syncError === null, syncError: syncError ?? undefined };
+    },
+    [setPhase, synchronize],
+  );
+
   /** Recarga manual o reintento tras needs-sync: sólo lectura, nunca repite escrituras. */
   const reload = useCallback(async () => {
     if (phaseRef.current === "saving" || phaseRef.current === "refreshing") return null;
@@ -150,6 +173,7 @@ export function useKanbanController() {
     draggingRef,
     move,
     create,
+    bulk,
     reload,
   };
 }
