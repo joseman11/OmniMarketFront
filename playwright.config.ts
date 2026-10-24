@@ -1,12 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
-import { readE2ESecret } from "./tests/e2e/secret";
 
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 
 /**
  * E2E con el adaptador mock (NEXT_PUBLIC_USE_MOCKS=true) para que sean repetibles.
- * La sesión autenticada se fabrica en global-setup firmando un JWT de Auth.js
- * con AUTH_SECRET: no existe ningún atajo de login en la aplicación.
+ * La sesión de prueba es una cookie aislada, aceptada sólo con E2E_MOCK_AUTH=true.
  */
 export default defineConfig({
   testDir: "tests/e2e",
@@ -27,7 +25,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       NEXT_PUBLIC_USE_MOCKS: "true",
-      AUTH_SECRET: readE2ESecret(),
+      E2E_MOCK_AUTH: "true",
     },
   },
 });

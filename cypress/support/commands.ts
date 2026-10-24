@@ -4,16 +4,14 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Cypress {
     interface Chainable {
-      /** Inicia sesión firmando un JWT de Auth.js (sin pasar por OAuth). */
+      /** Inicia sesión con la cookie de prueba aceptada sólo con E2E_MOCK_AUTH=true. */
       login(): Chainable<void>;
     }
   }
 }
 
 Cypress.Commands.add("login", () => {
-  cy.task<string>("sessionToken").then((token) => {
-    cy.setCookie("authjs.session-token", token, { domain: "localhost", path: "/", httpOnly: true });
-  });
+  cy.setCookie("omni_session", "e2e-mock-session", { domain: "localhost", path: "/", httpOnly: true });
 });
 
 export {};

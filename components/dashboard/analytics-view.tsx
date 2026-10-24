@@ -14,10 +14,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { aggregateByCategory, aggregateByDay, isoDaysAgo } from "@/lib/analytics";
 import { analyticsFiltersSchema, PAGE_SIZES, paginationSchema } from "@/lib/api/schemas";
-import { CATEGORIES, categoryColor } from "@/lib/catalog";
+import { categoryColor } from "@/lib/catalog";
 import { formatCurrency, formatDay, formatNumber, formatPercent } from "@/lib/format";
 import { marginRatio } from "@/lib/finance";
-import { useAnalytics, useAnalyticsSeries } from "@/lib/hooks/use-api";
+import { useAnalytics, useAnalyticsSeries, useCategories } from "@/lib/hooks/use-api";
 import { cn } from "@/lib/utils";
 
 const ALL = "all";
@@ -51,6 +51,7 @@ export function AnalyticsView() {
 
   const table = useAnalytics({ page, limit, ...filters });
   const series = useAnalyticsSeries(filters);
+  const categories = useCategories();
   const byDay = series.data ? aggregateByDay(series.data) : [];
   const byCat = series.data ? aggregateByCategory(series.data) : [];
   const meta = table.data?.data.meta;
@@ -61,7 +62,7 @@ export function AnalyticsView() {
       <PageHeader
         title="Analítica"
         accent="de ventas"
-        description="Métricas diarias por categoría desde GET /api/test/analytics, paginadas en el servidor."
+        description="Métricas diarias por categoría desde GET /api/analytics, paginadas en el servidor."
         actions={<LatencyBadge ms={table.data?.latencyMs} testId="analytics-latency" />}
       />
 
@@ -102,9 +103,9 @@ export function AnalyticsView() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={ALL}>Todas las categorías</SelectItem>
-                {CATEGORIES.map((c) => (
+                {(categories.data?.data.items ?? []).map((c) => (
                   <SelectItem key={c.id} value={c.id}>
-                    <span className="size-2 rounded-full" style={{ background: c.color }} /> {c.name}
+                  <span className="size-2 rounded-full" style={{ background: categoryColor(c.id) }} /> {c.name}
                   </SelectItem>
                 ))}
               </SelectContent>

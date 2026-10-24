@@ -1,7 +1,6 @@
 /**
- * Catálogo de referencia (espejo de Category/Product en schema.prisma).
- * Se usa en el formulario de creación y en el adaptador mock.
- * TODO backend: exponer GET /api/products para no duplicarlo en el cliente.
+ * Catálogo de demostración exclusivo del adaptador mock.
+ * La aplicación conectada lee productos y categorías desde la API.
  */
 export type Category = { id: string; name: string; color: string };
 export type Product = {
