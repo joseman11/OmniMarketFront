@@ -34,7 +34,7 @@ function QuickStats() {
           {isLoading || !value ? (
             <Skeleton className="mt-1 h-3 w-16" />
           ) : (
-            <div className="font-mono text-[11px] text-white/35">{value}</div>
+            <div className="font-mono text-[11px] text-subtle">{value}</div>
           )}
         </div>
       ))}

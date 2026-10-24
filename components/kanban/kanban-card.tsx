@@ -75,7 +75,7 @@ export const CardFace = memo(function CardFace({
         <div>
           <div className="font-mono text-[15px] text-white tabular">{formatCurrency(card.total)}</div>
           {card.updatedAt && (
-            <div className="mt-0.5 flex items-center gap-1 text-[11px] text-white/40">
+            <div className="mt-0.5 flex items-center gap-1 text-[11px] text-subtle">
               <Clock className="size-3" /> {formatRelativeTime(card.updatedAt)}
             </div>
           )}

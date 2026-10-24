@@ -82,7 +82,7 @@ export function DashboardShell({ user, children }: { user: ShellUser; children: 
             <Menu className="size-4" />
           </button>
           <nav aria-label="Ruta de navegación" className="flex min-w-0 items-center gap-1.5 text-sm">
-            <Link href="/dashboard" className="text-white/45 hover:text-white">
+            <Link href="/dashboard" className="text-subtle hover:text-white">
               OmniMarket
             </Link>
             <ChevronRight className="size-3.5 text-white/25" />
@@ -105,7 +105,7 @@ export function DashboardShell({ user, children }: { user: ShellUser; children: 
               type="button"
               onClick={() => setPaletteOpen(true)}
               aria-label="Abrir paleta de comandos"
-              className="flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-sm text-white/45 transition hover:border-white/20 hover:text-white md:w-64"
+              className="flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-sm text-subtle transition hover:border-white/20 hover:text-white md:w-64"
             >
               <Search className="size-4" />
               <span className="hidden md:inline">Buscar o saltar a…</span>

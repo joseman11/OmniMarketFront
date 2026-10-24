@@ -19,6 +19,9 @@
   --color-panel: #0c0c12;
   --color-success: #3ddc97;
   --color-danger: #ff5c7a;
+  /* Texto secundario informativo: opaco para no depender del fondo; ≥4.5:1 (WCAG 1.4.3 AA)
+     sobre #0e0e15 (≈5.3:1) y sobre la superficie más clara de tarjetas #16161f (≈4.9:1). */
+  --color-subtle: #85858f;
   --animate-spotlight: spotlight 2s ease 0.75s 1 forwards;
   --animate-scroll: scroll var(--animation-duration, 40s) var(--animation-direction, forwards) linear infinite;
   --animate-shake: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;

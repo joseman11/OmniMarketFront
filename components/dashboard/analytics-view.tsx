@@ -138,7 +138,7 @@ export function AnalyticsView() {
           <button
             type="button"
             onClick={() => router.replace(pathname, { scroll: false })}
-            className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs text-white/45 hover:text-white"
+            className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs text-subtle hover:text-white"
           >
             <RotateCcw className="size-3.5" /> Limpiar
           </button>
@@ -234,7 +234,7 @@ export function AnalyticsView() {
                     ))}
                 {table.data && table.data.data.data.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-10 text-center font-sans text-white/45">
+                    <TableCell colSpan={7} className="py-10 text-center font-sans text-subtle">
                       No hay datos para los filtros seleccionados.
                     </TableCell>
                   </TableRow>
@@ -245,7 +245,7 @@ export function AnalyticsView() {
         )}
 
         <nav aria-label="Paginación" className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] px-5 py-3">
-          <span className="text-xs text-white/45">
+          <span className="text-xs text-subtle">
             {meta ? `Mostrando ${formatNumber(Math.min((page - 1) * limit + 1, meta.total))}–${formatNumber(Math.min(page * limit, meta.total))} de ${formatNumber(meta.total)}` : <Skeleton className="h-3 w-32" />}
           </span>
           <div className="flex items-center gap-1">

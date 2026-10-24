@@ -41,7 +41,7 @@ export function KpiCard({
         className="pointer-events-none absolute -top-16 -right-10 size-40 rounded-full opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-40"
         style={{ background: color }}
       />
-      <div className="font-mono text-[10px] tracking-[0.16em] text-white/45 uppercase">{label}</div>
+      <div className="font-mono text-[10px] tracking-[0.16em] text-subtle uppercase">{label}</div>
       <div className="mt-2 font-mono text-[26px] leading-none text-white tabular">
         <AnimatedNumber value={value} format={format} />
       </div>

@@ -47,7 +47,7 @@ function OrderLineEditor({
   const selectedProductIsInactive = line.productId === existingLine?.productId && !products.some((item) => item.id === line.productId && item.isActive);
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_88px_36px] items-start gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
-      <label className="grid min-w-0 gap-1.5 text-xs text-white/45">
+      <label className="grid min-w-0 gap-1.5 text-xs text-subtle">
         Producto
         <select
           value={line.productId}
@@ -59,7 +59,7 @@ function OrderLineEditor({
           {products.filter((product) => product.isActive).map((product) => <option key={product.id} value={product.id}>{product.name} · {formatCurrency(product.price)}</option>)}
         </select>
       </label>
-      <label className="grid gap-1.5 text-xs text-white/45">
+      <label className="grid gap-1.5 text-xs text-subtle">
         Cantidad
         <Input type="number" inputMode="numeric" min={1} max={99} value={line.quantity} disabled={disabled} onChange={(event) => onChange({ ...line, quantity: Number(event.target.value) })} />
       </label>
@@ -173,22 +173,22 @@ export function OrderDetail({ orderId }: { orderId: string }) {
                 {productsQuery.error && <p role="alert" className="text-xs text-danger">No se pudo cargar el catálogo: {messageFrom(productsQuery.error)}</p>}
                 <Button type="button" variant="outline" size="sm" className="w-fit" disabled={saving || conflict || lines.length >= 100 || products.filter((product) => product.isActive).length === 0} onClick={() => addLine(products.find((product) => product.isActive)?.id ?? "")}><Plus className="size-3.5" /> Agregar producto</Button>
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
-                  <span className="text-sm text-white/45">Total estimado <strong className="ml-2 font-mono text-white">{formatCurrency(estimate)}</strong></span>
+                  <span className="text-sm text-subtle">Total estimado <strong className="ml-2 font-mono text-white">{formatCurrency(estimate)}</strong></span>
                   <div className="flex gap-2"><Button type="button" variant="ghost" onClick={cancel} disabled={saving}>Cancelar</Button><Button type="submit" disabled={saving || conflict || productsQuery.isLoading}><Save className="size-3.5" />{saving ? "Guardando…" : "Guardar artículos"}</Button></div>
                 </div>
               </form>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[520px] text-left text-sm">
-                  <thead className="border-b border-white/[0.06] text-[11px] uppercase tracking-wider text-white/35"><tr><th className="py-2 font-medium">Producto</th><th className="py-2 text-right font-medium">Cantidad</th><th className="py-2 text-right font-medium">Precio unitario</th><th className="py-2 text-right font-medium">Importe</th></tr></thead>
-                  <tbody className="divide-y divide-white/[0.05]">{order.items.map((line) => <tr key={line.id}><td className="py-3"><div className="font-medium text-white">{line.product.name}</div><div className="mt-0.5 font-mono text-[11px] text-white/40">{line.product.sku}</div></td><td className="py-3 text-right font-mono text-white/70">{line.quantity}</td><td className="py-3 text-right font-mono text-white/70">{formatCurrency(line.unitPrice)}</td><td className="py-3 text-right font-mono text-white">{formatCurrency(line.unitPrice * line.quantity)}</td></tr>)}</tbody>
+                  <thead className="border-b border-white/[0.06] text-[11px] uppercase tracking-wider text-subtle"><tr><th className="py-2 font-medium">Producto</th><th className="py-2 text-right font-medium">Cantidad</th><th className="py-2 text-right font-medium">Precio unitario</th><th className="py-2 text-right font-medium">Importe</th></tr></thead>
+                  <tbody className="divide-y divide-white/[0.05]">{order.items.map((line) => <tr key={line.id}><td className="py-3"><div className="font-medium text-white">{line.product.name}</div><div className="mt-0.5 font-mono text-[11px] text-subtle">{line.product.sku}</div></td><td className="py-3 text-right font-mono text-white/70">{line.quantity}</td><td className="py-3 text-right font-mono text-white/70">{formatCurrency(line.unitPrice)}</td><td className="py-3 text-right font-mono text-white">{formatCurrency(line.unitPrice * line.quantity)}</td></tr>)}</tbody>
                 </table>
               </div>
             )}
           </Panel>
 
           <Panel title="Cliente" description="Datos asociados a esta orden">
-            <div className="grid gap-4 sm:grid-cols-2"><div><p className="text-xs text-white/40">Nombre</p><p className="mt-1 text-sm text-white">{order.customer.name}</p></div><div><p className="text-xs text-white/40">Correo</p><p className="mt-1 break-all text-sm text-white">{order.customer.email}</p></div>{order.customer.city && <div><p className="text-xs text-white/40">Ciudad</p><p className="mt-1 text-sm text-white">{order.customer.city}</p></div>}</div>
+            <div className="grid gap-4 sm:grid-cols-2"><div><p className="text-xs text-subtle">Nombre</p><p className="mt-1 text-sm text-white">{order.customer.name}</p></div><div><p className="text-xs text-subtle">Correo</p><p className="mt-1 break-all text-sm text-white">{order.customer.email}</p></div>{order.customer.city && <div><p className="text-xs text-subtle">Ciudad</p><p className="mt-1 text-sm text-white">{order.customer.city}</p></div>}</div>
           </Panel>
         </div>
 
@@ -201,9 +201,9 @@ export function OrderDetail({ orderId }: { orderId: string }) {
               >
                 {status.label}
               </span>
-              <div><p className="text-xs text-white/40">Total</p><p className="mt-1 font-mono text-2xl text-white">{formatCurrency(order.total)}</p></div>
-              <div><p className="text-xs text-white/40">Margen bruto</p><p className="mt-1 font-mono text-lg text-white">{formatCurrency(order.margin)} <span className="text-xs text-white/45">({formatPercent(marginRatio(order.margin, order.total))})</span></p></div>
-              <div><p className="text-xs text-white/40">Última actualización</p><p className="mt-1 text-sm text-white/75">{new Date(order.updatedAt).toLocaleString("es-MX")}</p></div>
+              <div><p className="text-xs text-subtle">Total</p><p className="mt-1 font-mono text-2xl text-white">{formatCurrency(order.total)}</p></div>
+              <div><p className="text-xs text-subtle">Margen bruto</p><p className="mt-1 font-mono text-lg text-white">{formatCurrency(order.margin)} <span className="text-xs text-subtle">({formatPercent(marginRatio(order.margin, order.total))})</span></p></div>
+              <div><p className="text-xs text-subtle">Última actualización</p><p className="mt-1 text-sm text-white/75">{new Date(order.updatedAt).toLocaleString("es-MX")}</p></div>
             </div>
           </Panel>
           {editing && <Panel title="Importante" className="border-brand/20"><p className="text-xs leading-relaxed text-white/50">Al guardar, el backend recalcula total y margen con el precio y costo actuales de cada producto. Si la orden cambió en otra sesión, tendrás que recargar y volver a intentar.</p></Panel>}

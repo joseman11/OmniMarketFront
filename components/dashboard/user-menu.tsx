@@ -51,7 +51,7 @@ export function UserMenu({ user, collapsed }: { user: ShellUser; collapsed?: boo
           <>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium text-white">{user.name}</span>
-              <span className="block truncate text-xs text-white/45">{user.role}</span>
+              <span className="block truncate text-xs text-subtle">{user.role}</span>
             </span>
             <ChevronsUpDown className="size-4 text-white/40" />
           </>

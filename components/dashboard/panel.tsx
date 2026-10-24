@@ -26,7 +26,7 @@ export function Panel({
         <header className="mb-5 flex items-start justify-between gap-4">
           <div>
             {title && <h2 className="text-[15px] font-medium text-white">{title}</h2>}
-            {description && <p className="mt-0.5 text-xs text-white/45">{description}</p>}
+            {description && <p className="mt-0.5 text-xs text-subtle">{description}</p>}
           </div>
           {action}
         </header>

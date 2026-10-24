@@ -94,8 +94,8 @@ export function Overview() {
           <>
             <div className="mb-6 font-mono text-4xl text-white tabular md:text-5xl">
               {big.whole}
-              <span className="align-top text-lg text-white/45">{big.cents}</span>
-              <span className="ml-2 align-middle font-sans text-xs text-white/35">MXN</span>
+              <span className="align-top text-lg text-subtle">{big.cents}</span>
+              <span className="ml-2 align-middle font-sans text-xs text-subtle">MXN</span>
             </div>
             <SegmentedBar
               segments={byCategory.map((c) => ({
@@ -118,7 +118,7 @@ export function Overview() {
           title="Últimas órdenes"
           description="Actualizadas recientemente"
           action={
-            <Link href="/dashboard/kanban" className="inline-flex items-center gap-1 text-xs text-white/45 hover:text-white">
+            <Link href="/dashboard/kanban" className="inline-flex items-center gap-1 text-xs text-subtle hover:text-white">
               Ver tablero <ChevronRight className="size-3.5" />
             </Link>
           }
@@ -155,7 +155,7 @@ export function Overview() {
                       <img src={avatarDataUri(o.customerName, "#26263a", "#3a3a55")} alt="" className="size-8 rounded-full" />
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm text-white">{o.customerName}</div>
-                        <div className="flex items-center gap-1.5 truncate font-mono text-[11px] whitespace-nowrap text-white/40">
+                        <div className="flex items-center gap-1.5 truncate font-mono text-[11px] whitespace-nowrap text-subtle">
                           {o.orderNumber}
                           {o.updatedAt && <span className="truncate">· {formatRelativeTime(o.updatedAt)}</span>}
                         </div>

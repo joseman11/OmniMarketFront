@@ -163,7 +163,7 @@ export function CreateOrderDialog({
                           <SelectContent className="max-h-72">
                             {productGroups.map(([categoryName, categoryProducts]) => (
                               <div key={categoryName}>
-                                <div className="px-2 pt-2 pb-1 text-[10px] tracking-wider text-white/35 uppercase">{categoryName}</div>
+                                <div className="px-2 pt-2 pb-1 text-[10px] tracking-wider text-subtle uppercase">{categoryName}</div>
                                 {categoryProducts.map((p) => (
                                   <SelectItem key={p.id} value={p.id}>
                                     {p.name} · {formatCurrency(p.price)}
@@ -216,14 +216,14 @@ export function CreateOrderDialog({
               <Plus className="size-3.5" /> Agregar producto
             </Button>
             {products.length === 0 && !productsLoading && (
-              <p className="text-xs text-white/45">El catálogo del backend no tiene productos activos para crear órdenes.</p>
+              <p className="text-xs text-subtle">El catálogo del backend no tiene productos activos para crear órdenes.</p>
             )}
-            {productsLoading && <p className="text-xs text-white/45">Cargando catálogo…</p>}
+            {productsLoading && <p className="text-xs text-subtle">Cargando catálogo…</p>}
           </fieldset>
 
           <div className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
             <span className="text-sm text-white/55">Total estimado</span>
-            <span className={cn("font-mono text-lg text-white tabular", estimated === 0 && "text-white/40")}>
+            <span className={cn("font-mono text-lg text-white tabular", estimated === 0 && "text-subtle")}>
               {formatCurrency(estimated)}
             </span>
           </div>

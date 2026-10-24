@@ -332,17 +332,17 @@ export function CatalogManager() {
               className={cn("flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition", tab === "products" ? "border-brand/35 bg-brand/10 text-white" : "border-white/[0.07] text-white/55 hover:bg-white/[0.04] hover:text-white")}
             >
               <span className="flex items-center gap-2"><Box className="size-4" /> Productos</span>
-              <span className="font-mono text-xs text-white/40">{products.length}</span>
+              <span className="font-mono text-xs text-subtle">{products.length}</span>
             </Tabs.Trigger>
             <Tabs.Trigger
               value="categories"
               className={cn("flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition", tab === "categories" ? "border-brand/35 bg-brand/10 text-white" : "border-white/[0.07] text-white/55 hover:bg-white/[0.04] hover:text-white")}
             >
               <span className="flex items-center gap-2"><Tags className="size-4" /> Categorías</span>
-              <span className="font-mono text-xs text-white/40">{categories.length}</span>
+              <span className="font-mono text-xs text-subtle">{categories.length}</span>
             </Tabs.Trigger>
           </Tabs.List>
-          {!canManageCatalog && <p className="mt-4 text-xs leading-relaxed text-white/40">Esta cuenta solo puede consultar el catálogo.</p>}
+          {!canManageCatalog && <p className="mt-4 text-xs leading-relaxed text-subtle">Esta cuenta solo puede consultar el catálogo.</p>}
         </Panel>
 
         <Panel
@@ -365,17 +365,17 @@ export function CatalogManager() {
           ) : tab === "products" ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="border-y border-white/[0.06] bg-white/[0.02] text-[11px] uppercase tracking-wider text-white/35">
+                <thead className="border-y border-white/[0.06] bg-white/[0.02] text-[11px] uppercase tracking-wider text-subtle">
                   <tr><th className="px-5 py-3 font-medium">Producto</th><th className="px-4 py-3 font-medium">Categoría</th><th className="px-4 py-3 font-medium">Precio / costo</th><th className="px-4 py-3 font-medium">Existencia</th><th className="px-4 py-3 font-medium">Estado</th><th className="px-5 py-3 text-right font-medium">Acciones</th></tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.05]">
                   {filteredProducts.map((product) => (
                     <tr key={product.id} className="transition hover:bg-white/[0.025]">
-                      <td className="px-5 py-3"><div className="font-medium text-white">{product.name}</div><div className="mt-0.5 font-mono text-[11px] text-white/40">{product.sku}</div></td>
+                      <td className="px-5 py-3"><div className="font-medium text-white">{product.name}</div><div className="mt-0.5 font-mono text-[11px] text-subtle">{product.sku}</div></td>
                       <td className="px-4 py-3 text-white/60">{product.category.name}</td>
-                      <td className="px-4 py-3"><div className="font-mono text-white">{formatCurrency(product.price)}</div><div className="font-mono text-[11px] text-white/35">Costo {formatCurrency(product.cost)}</div></td>
+                      <td className="px-4 py-3"><div className="font-mono text-white">{formatCurrency(product.price)}</div><div className="font-mono text-[11px] text-subtle">Costo {formatCurrency(product.cost)}</div></td>
                       <td className="px-4 py-3 font-mono text-white/70">{product.stock}</td>
-                      <td className="px-4 py-3"><span className={cn("rounded-full border px-2 py-1 text-[10px]", product.isActive ? "border-success/25 bg-success/10 text-success" : "border-white/10 bg-white/[0.03] text-white/40")}>{product.isActive ? "Activo" : "Inactivo"}</span></td>
+                      <td className="px-4 py-3"><span className={cn("rounded-full border px-2 py-1 text-[10px]", product.isActive ? "border-success/25 bg-success/10 text-success" : "border-white/10 bg-white/[0.03] text-subtle")}>{product.isActive ? "Activo" : "Inactivo"}</span></td>
                       <td className="px-5 py-3"><div className="flex justify-end gap-1">
                         <Button variant="ghost" size="sm" onClick={() => setDetailProductId(product.id)}>Ver</Button>
                         {canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Editar ${product.name}`} onClick={() => void openProductForm(product)}><Pencil className="size-3.5" /></Button>}
@@ -385,20 +385,20 @@ export function CatalogManager() {
                   ))}
                 </tbody>
               </table>
-              {filteredProducts.length === 0 && <p className="p-8 text-center text-sm text-white/40">No hay productos que coincidan con la búsqueda.</p>}
+              {filteredProducts.length === 0 && <p className="p-8 text-center text-sm text-subtle">No hay productos que coincidan con la búsqueda.</p>}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[580px] text-left text-sm">
-                <thead className="border-y border-white/[0.06] bg-white/[0.02] text-[11px] uppercase tracking-wider text-white/35"><tr><th className="px-5 py-3 font-medium">Nombre</th><th className="px-4 py-3 font-medium">Slug</th><th className="px-4 py-3 font-medium">Productos</th><th className="px-5 py-3 text-right font-medium">Acciones</th></tr></thead>
+                <thead className="border-y border-white/[0.06] bg-white/[0.02] text-[11px] uppercase tracking-wider text-subtle"><tr><th className="px-5 py-3 font-medium">Nombre</th><th className="px-4 py-3 font-medium">Slug</th><th className="px-4 py-3 font-medium">Productos</th><th className="px-5 py-3 text-right font-medium">Acciones</th></tr></thead>
                 <tbody className="divide-y divide-white/[0.05]">
                   {filteredCategories.map((category) => {
                     const count = products.filter((product) => product.categoryId === category.id).length;
-                    return <tr key={category.id} className="transition hover:bg-white/[0.025]"><td className="px-5 py-3 font-medium text-white">{category.name}</td><td className="px-4 py-3 font-mono text-xs text-white/45">{category.slug}</td><td className="px-4 py-3 font-mono text-white/60">{count}</td><td className="px-5 py-3"><div className="flex justify-end gap-1">{canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Editar ${category.name}`} onClick={() => openCategoryForm(category)}><Pencil className="size-3.5" /></Button>}{canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Eliminar ${category.name}`} onClick={() => setDeleteTarget({ kind: "categories", id: category.id, label: category.name })}><Trash2 className="size-3.5 text-danger" /></Button>}</div></td></tr>;
+                    return <tr key={category.id} className="transition hover:bg-white/[0.025]"><td className="px-5 py-3 font-medium text-white">{category.name}</td><td className="px-4 py-3 font-mono text-xs text-subtle">{category.slug}</td><td className="px-4 py-3 font-mono text-white/60">{count}</td><td className="px-5 py-3"><div className="flex justify-end gap-1">{canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Editar ${category.name}`} onClick={() => openCategoryForm(category)}><Pencil className="size-3.5" /></Button>}{canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Eliminar ${category.name}`} onClick={() => setDeleteTarget({ kind: "categories", id: category.id, label: category.name })}><Trash2 className="size-3.5 text-danger" /></Button>}</div></td></tr>;
                   })}
                 </tbody>
               </table>
-              {filteredCategories.length === 0 && <p className="p-8 text-center text-sm text-white/40">No hay categorías que coincidan con la búsqueda.</p>}
+              {filteredCategories.length === 0 && <p className="p-8 text-center text-sm text-subtle">No hay categorías que coincidan con la búsqueda.</p>}
             </div>
           )}
           </Tabs.Content>
@@ -440,7 +440,7 @@ export function CatalogManager() {
       <Dialog open={detailProductId !== null} onOpenChange={(open) => !open && setDetailProductId(null)}>
         <DialogContent onCloseAutoFocus={detailReturnFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
           <DialogHeader><DialogTitle>Detalle del producto</DialogTitle><DialogDescription>Consulta directa del registro en el backend.</DialogDescription></DialogHeader>
-          {detail.error && !productDetail ? <ErrorState message={`No se pudo consultar el producto: ${messageFrom(detail.error)}`} onRetry={() => void detail.mutate()} /> : detail.isLoading || !productDetail ? <Skeleton className="h-32 w-full" /> : productDetail ? <div className="grid grid-cols-2 gap-3 text-sm"><div className="text-white/40">Nombre</div><div className="text-right text-white">{productDetail.name}</div><div className="text-white/40">SKU</div><div className="text-right font-mono text-white">{productDetail.sku}</div><div className="text-white/40">Categoría</div><div className="text-right text-white">{productDetail.category.name}</div><div className="text-white/40">Precio</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.price)}</div><div className="text-white/40">Costo</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.cost)}</div><div className="text-white/40">Existencia</div><div className="text-right font-mono text-white">{productDetail.stock}</div></div> : null}
+          {detail.error && !productDetail ? <ErrorState message={`No se pudo consultar el producto: ${messageFrom(detail.error)}`} onRetry={() => void detail.mutate()} /> : detail.isLoading || !productDetail ? <Skeleton className="h-32 w-full" /> : productDetail ? <div className="grid grid-cols-2 gap-3 text-sm"><div className="text-subtle">Nombre</div><div className="text-right text-white">{productDetail.name}</div><div className="text-subtle">SKU</div><div className="text-right font-mono text-white">{productDetail.sku}</div><div className="text-subtle">Categoría</div><div className="text-right text-white">{productDetail.category.name}</div><div className="text-subtle">Precio</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.price)}</div><div className="text-subtle">Costo</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.cost)}</div><div className="text-subtle">Existencia</div><div className="text-right font-mono text-white">{productDetail.stock}</div></div> : null}
           <DialogFooter>{canManageCatalog && productDetail && <Button variant="outline" onClick={() => { setDetailProductId(null); void openProductForm(productDetail); }}><Pencil className="size-3.5" /> Editar</Button>}<Button variant="ghost" onClick={() => setDetailProductId(null)}>Cerrar</Button></DialogFooter>
         </DialogContent>
       </Dialog>

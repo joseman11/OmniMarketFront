@@ -67,7 +67,7 @@ export function KanbanColumn({
           className="ml-auto size-4 border-white/25"
         />
       </header>
-      <div className="px-3 pb-2 font-mono text-[11px] text-white/35">{formatCurrency(total)}</div>
+      <div className="px-3 pb-2 font-mono text-[11px] text-subtle">{formatCurrency(total)}</div>
       <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
         <div className="flex min-h-[140px] flex-1 flex-col gap-2.5 px-2.5 pb-3">
           {cards.map((card) => (
@@ -83,7 +83,7 @@ export function KanbanColumn({
             />
           ))}
           {cards.length === 0 && (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/10 py-8 text-xs text-white/35">
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/10 py-8 text-xs text-subtle">
               <Inbox className="size-5" />
               Suelta órdenes aquí
             </div>

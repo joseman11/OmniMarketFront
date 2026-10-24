@@ -14,7 +14,7 @@ export function LatencyBadge({ ms, testId, className }: { ms?: number; testId?: 
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] tabular",
         className,
         ms === undefined
-          ? "border-white/10 text-white/40"
+          ? "border-white/10 text-subtle"
           : ok
             ? "border-success/30 bg-success/10 text-success"
             : "border-danger/30 bg-danger/10 text-danger",

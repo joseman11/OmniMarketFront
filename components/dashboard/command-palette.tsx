@@ -71,7 +71,7 @@ export function CommandPalette({
               <CommandItem key={n.href} value={`${n.label} ${n.description}`} onSelect={() => go(n.href)}>
                 <Icon className="size-4" />
                 <span>{n.label}</span>
-                <span className="ml-2 truncate text-xs text-white/40">{n.description}</span>
+                <span className="ml-2 truncate text-xs text-subtle">{n.description}</span>
               </CommandItem>
             );
           })}
