@@ -59,8 +59,14 @@ export function AnalyticsView() {
   const series = useAnalyticsSeries(filters);
   const categories = useCategories();
   // La gráfica cubre el rango de calendario del filtro; los días sin ventas valen cero.
-  const byDay = series.data ? fillDays(aggregateByDay(series.data), filters.from ?? defaults.from, filters.to ?? defaults.to) : [];
-  const byCat = series.data ? aggregateByCategory(series.data) : [];
+  // Agregados memoizados por identidad de datos y rango (no en cada render).
+  const rangeFrom = filters.from ?? defaults.from;
+  const rangeTo = filters.to ?? defaults.to;
+  const byDay = useMemo(
+    () => (series.data ? fillDays(aggregateByDay(series.data), rangeFrom, rangeTo) : []),
+    [series.data, rangeFrom, rangeTo],
+  );
+  const byCat = useMemo(() => (series.data ? aggregateByCategory(series.data) : []), [series.data]);
   const meta = table.data?.data.meta;
   const totalPages = Math.max(1, meta?.totalPages ?? 1);
 

@@ -150,6 +150,12 @@ export function CatalogManager() {
     if (!query) return products;
     return products.filter((product) => `${product.name} ${product.sku} ${product.category.name}`.toLowerCase().includes(query));
   }, [products, search]);
+  // Conteo de productos por categoría indexado una vez (antes un filter por fila: O(C×P)).
+  const productCountByCategory = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const product of products) counts.set(product.categoryId, (counts.get(product.categoryId) ?? 0) + 1);
+    return counts;
+  }, [products]);
   const filteredCategories = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return categories;
@@ -393,7 +399,7 @@ export function CatalogManager() {
                 <thead className="border-y border-white/[0.06] bg-white/[0.02] text-[11px] uppercase tracking-wider text-subtle"><tr><th className="px-5 py-3 font-medium">Nombre</th><th className="px-4 py-3 font-medium">Slug</th><th className="px-4 py-3 font-medium">Productos</th><th className="px-5 py-3 text-right font-medium">Acciones</th></tr></thead>
                 <tbody className="divide-y divide-white/[0.05]">
                   {filteredCategories.map((category) => {
-                    const count = products.filter((product) => product.categoryId === category.id).length;
+                    const count = productCountByCategory.get(category.id) ?? 0;
                     return <tr key={category.id} className="transition hover:bg-white/[0.025]"><td className="px-5 py-3 font-medium text-white">{category.name}</td><td className="px-4 py-3 font-mono text-xs text-subtle">{category.slug}</td><td className="px-4 py-3 font-mono text-white/60">{count}</td><td className="px-5 py-3"><div className="flex justify-end gap-1">{canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Editar ${category.name}`} onClick={() => openCategoryForm(category)}><Pencil className="size-3.5" /></Button>}{canManageCatalog && <Button variant="ghost" size="icon-sm" aria-label={`Eliminar ${category.name}`} onClick={() => setDeleteTarget({ kind: "categories", id: category.id, label: category.name })}><Trash2 className="size-3.5 text-danger" /></Button>}</div></td></tr>;
                   })}
                 </tbody>

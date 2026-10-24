@@ -26,15 +26,15 @@ export function Overview() {
   const board = useKanbanBoard();
 
   const rows = series.data;
-  const kpis = rows ? computeKpis(rows, WINDOW, today) : null;
+  const kpis = useMemo(() => (rows ? computeKpis(rows, WINDOW, today) : null), [rows, today]);
   const currentRows = useMemo(() => {
     if (!rows) return [];
     const cutoff = isoDaysBefore(today, WINDOW - 1);
     return rows.filter((r) => r.day >= cutoff);
   }, [rows, today]);
-  const byCategory = aggregateByCategory(currentRows);
+  const byCategory = useMemo(() => aggregateByCategory(currentRows), [currentRows]);
   // Mismo corte de calendario que los KPI: días sin ventas aparecen en cero.
-  const byDay = fillDays(aggregateByDay(currentRows), isoDaysBefore(today, WINDOW - 1), today);
+  const byDay = useMemo(() => fillDays(aggregateByDay(currentRows), isoDaysBefore(today, WINDOW - 1), today), [currentRows, today]);
   const totalRevenue = byCategory.reduce((a, c) => a + c.revenue, 0);
   const big = splitCurrency(totalRevenue);
 

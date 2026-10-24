@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
+import { useMemo } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,19 +66,27 @@ export function CreateOrderDialog({
   const { register, control, handleSubmit, formState, reset } = form;
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const items = useWatch({ control, name: "items" });
+  const priceById = useMemo(() => new Map(products.map((product) => [product.id, product.price])), [products]);
   const estimated = orderTotal(
     (items ?? []).map((i) => ({
       quantity: Number(i?.quantity) || 0,
-      unitPrice: products.find((product) => product.id === i?.productId)?.price ?? 0,
+      unitPrice: priceById.get(i?.productId ?? "") ?? 0,
     })),
   );
-  const productGroups = Array.from(
-    products.reduce((groups, product) => {
-      const group = groups.get(product.category.name) ?? [];
-      group.push(product);
-      groups.set(product.category.name, group);
-      return groups;
-    }, new Map<string, ApiProduct[]>()),
+  // Agrupar el catálogo sólo con el diálogo abierto y una vez por catálogo (no al cambiar cantidades).
+  const productGroups = useMemo(
+    () =>
+      open
+        ? Array.from(
+            products.reduce((groups, product) => {
+              const group = groups.get(product.category.name) ?? [];
+              group.push(product);
+              groups.set(product.category.name, group);
+              return groups;
+            }, new Map<string, ApiProduct[]>()),
+          )
+        : [],
+    [open, products],
   );
 
   const submit = handleSubmit(async (values) => {

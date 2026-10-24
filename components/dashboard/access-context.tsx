@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useMemo } from "react";
 
 const DashboardAccessContext = createContext({ canManageCatalog: false });
 
@@ -11,7 +11,9 @@ export function DashboardAccessProvider({
   canManageCatalog: boolean;
   children: React.ReactNode;
 }) {
-  return <DashboardAccessContext.Provider value={{ canManageCatalog }}>{children}</DashboardAccessContext.Provider>;
+  // Valor estable: el shell re-renderiza a menudo y no debe invalidar a todos los consumidores.
+  const value = useMemo(() => ({ canManageCatalog }), [canManageCatalog]);
+  return <DashboardAccessContext.Provider value={value}>{children}</DashboardAccessContext.Provider>;
 }
 
 export function useDashboardAccess() {
