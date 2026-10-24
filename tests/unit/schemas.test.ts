@@ -11,7 +11,6 @@ const validOrder = {
   customerName: "Valeria Hernández",
   customerEmail: "valeria@example.mx",
   items: [{ productId: "p-aud-01", quantity: 2 }],
-  status: "PENDING",
 };
 
 describe("schema de orden", () => {
@@ -34,8 +33,8 @@ describe("schema de orden", () => {
     expect(createOrderInputSchema.safeParse({ ...validOrder, items: [] }).success).toBe(false);
   });
 
-  it("rechaza un estado que no pertenece al enum OrderStatus", () => {
-    expect(createOrderInputSchema.safeParse({ ...validOrder, status: "LOST" }).success).toBe(false);
+  it("rechaza un correo que no cumple el contrato requerido del backend", () => {
+    expect(createOrderInputSchema.safeParse({ ...validOrder, customerEmail: "invalido" }).success).toBe(false);
   });
 });
 
@@ -55,18 +54,18 @@ describe("schema de paginación", () => {
 describe("parseo de respuestas en la frontera", () => {
   it("convierte Decimals string a number en analítica", () => {
     const parsed = analyticsResponseSchema.parse({
-      data: [
+      summary: { ordersCount: 12, revenue: "15400.50", avgTicket: "1283.37", grossMargin: "8100.00" },
+      items: [
         {
           day: "2026-10-01T00:00:00.000Z",
-          categoryId: 3,
-          categoryName: "Moda",
+          category: { id: "3", name: "Moda", slug: "moda" },
           ordersCount: 12,
           revenue: "15400.50",
           avgTicket: "1283.37",
           grossMargin: "8100.00",
         },
       ],
-      meta: { total: 1, page: 1, pageSize: 50, totalPages: 1 },
+      pagination: { total: 1, page: 1, limit: 50, totalPages: 1 },
     });
     expect(parsed.data[0]).toMatchObject({ day: "2026-10-01", categoryId: "3", revenue: 15400.5 });
   });

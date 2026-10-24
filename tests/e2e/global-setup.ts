@@ -1,16 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { encode } from "next-auth/jwt";
-import { readE2ESecret } from "./secret";
-
-const COOKIE = "authjs.session-token";
 
 export default async function globalSetup() {
-  const token = await encode({
-    secret: readE2ESecret(),
-    salt: COOKIE,
-    token: { sub: "e2e-user", name: "E2E Evaluador", email: "e2e@omnimarket.mx", role: "Operador" },
-    maxAge: 60 * 60,
-  });
   const port = Number(process.env.E2E_PORT ?? 3100);
   mkdirSync("tests/e2e/.auth", { recursive: true });
   writeFileSync(
@@ -18,8 +8,8 @@ export default async function globalSetup() {
     JSON.stringify({
       cookies: [
         {
-          name: COOKIE,
-          value: token,
+          name: "omni_session",
+          value: "e2e-mock-session",
           domain: "localhost",
           path: "/",
           expires: Math.floor(Date.now() / 1000) + 3600,

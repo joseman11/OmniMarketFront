@@ -1,6 +1,6 @@
 import { API_BASE_URL, USE_MOCKS } from "./config";
 
-export type HttpMethod = "GET" | "POST" | "PATCH";
+export type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 export type TransportRequest = {
   method: HttpMethod;
@@ -22,7 +22,12 @@ export function buildUrl(path: string, query?: TransportRequest["query"]): strin
     if (v !== undefined && v !== "") params.set(k, String(v));
   }
   const qs = params.toString();
-  return `${API_BASE_URL}${path}${qs ? `?${qs}` : ""}`;
+  const routedPath = path.startsWith("/api/internal/")
+    ? path
+    : path.startsWith("/api/")
+      ? `/backend${path.slice("/api".length)}`
+      : path;
+  return `${API_BASE_URL}${routedPath}${qs ? `?${qs}` : ""}`;
 }
 
 async function httpTransport(req: TransportRequest): Promise<TransportResponse> {

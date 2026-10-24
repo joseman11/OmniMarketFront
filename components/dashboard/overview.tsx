@@ -145,7 +145,7 @@ export function Overview() {
                 return (
                   <li key={o.id}>
                     <Link
-                      href="/dashboard/kanban"
+                      href={`/dashboard/orders/${encodeURIComponent(o.id)}`}
                       className="flex items-center gap-3 px-5 py-3 transition hover:bg-white/[0.03] md:px-6"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}

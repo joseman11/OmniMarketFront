@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
 
 concurrency:
@@ -15,7 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_PUBLIC_USE_MOCKS: "true"
-      AUTH_SECRET: ${{ secrets.AUTH_SECRET || 'ci-only-secret-not-for-production-0000000' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_PUBLIC_USE_MOCKS: "true"
-      AUTH_SECRET: ci-only-secret-not-for-production-0000000
+      E2E_MOCK_AUTH: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
