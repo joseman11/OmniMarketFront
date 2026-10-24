@@ -37,8 +37,8 @@ function AnalyticsVisual() {
   // Las tres tarjetas comparten la misma celda de grid; la inclinación es estática
   // (wrapper) y CardItem añade profundidad (translateZ) al pasar el mouse.
   const layers = [
-    { z: 20, tilt: "rotate(-18deg) translate(-150px, 52px)", node: <StackCard title="Órdenes / día" value="284" className="opacity-70" /> },
-    { z: 50, tilt: "rotate(-9deg) translate(-78px, 22px)", node: <StackCard title="Margen bruto" value="46.2%" className="opacity-85" /> },
+    { z: 20, tilt: "rotate(-18deg) translate(-150px, 52px)", node: <StackCard title="Pedidos por día" value="284" className="opacity-70" /> },
+    { z: 50, tilt: "rotate(-9deg) translate(-78px, 22px)", node: <StackCard title="Ganancia" value="46.2%" className="opacity-85" /> },
   ];
   return (
     <CardContainer containerClassName="py-0 w-full" className="w-full">
@@ -99,7 +99,7 @@ function AnalyticsVisual() {
 }
 
 const STAGES = [
-  { status: "PENDING", label: "Pendiente", icon: CircleDot, color: "#9a9aab" },
+  { status: "PENDING", label: "Nuevo", icon: CircleDot, color: "#9a9aab" },
   { status: "PROCESSING", label: "Procesando", icon: Timer, color: "#7c5cff" },
   { status: "SHIPPED", label: "Enviado", icon: Truck, color: "#ff9a5c" },
   { status: "DELIVERED", label: "Entregado", icon: PackageCheck, color: "#3ddc97" },
@@ -184,7 +184,7 @@ function CircuitVisual() {
                   <Icon className="size-[40%]" style={{ color: s.color }} />
                 </div>
               </div>
-              <div className="mt-2 text-center font-mono text-[10px] tracking-wider text-white/60">{s.status}</div>
+              <div className="mt-2 text-center text-xs font-medium text-white/70">{s.label}</div>
             </motion.div>
           );
         })}
@@ -251,26 +251,26 @@ export function FeatureCards() {
       <div className="mx-auto flex max-w-6xl flex-col gap-8">
         <FeatureShell
           id="analitica"
-          title="Analítica en tiempo cercano al real"
-          accent={["cercano", "al", "real"]}
-          description="Ingresos por día, margen por categoría y ticket promedio con paginación en servidor y latencia medida en cada consulta."
+          title="Decide con números, no con corazonadas"
+          accent={["números,"]}
+          description="Descubre qué productos te dejan más ganancia, qué días vendes más y cuánto gasta cada cliente en promedio. Invierte donde de verdad rinde."
           bullets={[
-            "Paginación ?page=&limit= resuelta en el backend",
-            "Badge de latencia: verde por debajo de 300 ms",
-            "Decimals de Prisma parseados de forma segura",
+            "Tus ventas y tu ganancia, actualizadas al momento",
+            "Las categorías que más dinero te dejan, a la vista",
+            "Filtra por fechas y compara cómo vas mes con mes",
           ]}
           visual={<AnalyticsVisual />}
         />
         <FeatureShell
           id="kanban"
           reverse
-          title="Kanban con mutación optimista"
-          accent={["optimista"]}
-          description="Arrastra órdenes entre estados: la UI responde al instante y, si el servidor falla, revierte con una sacudida y te avisa."
+          title="Cada pedido llega a su destino"
+          accent={["a", "su", "destino"]}
+          description="Mueve tus pedidos de nuevo a entregado con solo arrastrarlos. Tu equipo ve lo mismo al mismo tiempo, así nadie se pisa y ningún cliente se queda esperando."
           bullets={[
-            "Concurrencia optimista con version (409 → recarga)",
-            "Bulk update atómico con confirmación",
-            "Navegación por teclado con dnd-kit",
+            "Sabes en todo momento qué pedidos faltan por salir",
+            "Actualiza decenas de pedidos con un solo clic",
+            "Tu equipo coordinado, sin mensajes ni llamadas de más",
           ]}
           visual={<CircuitVisual />}
         />

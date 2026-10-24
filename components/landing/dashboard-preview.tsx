@@ -17,10 +17,10 @@ export function DashboardPreview() {
           titleComponent={
             <SectionHeading
               id="preview-title"
-              eyebrow="Dashboard"
+              eyebrow="Tu negocio de un vistazo"
               title="Todo tu negocio en una sola vista"
               accent={["sola", "vista"]}
-              description="KPIs, ingresos por categoría y órdenes recientes. Datos validados con Zod en la frontera y cacheados con SWR."
+              description="Cuánto vendiste hoy, qué categorías te dejan más dinero y qué pedidos acaban de llegar. Abre la pantalla y en segundos sabes cómo va tu día."
               className="mb-16"
             />
           }

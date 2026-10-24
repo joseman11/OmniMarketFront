@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "#producto", label: "Producto" },
-  { href: "#analitica", label: "Analítica" },
-  { href: "#kanban", label: "Kanban" },
+  { href: "#analitica", label: "Ventas" },
+  { href: "#kanban", label: "Pedidos" },
 ];
 
 export function PillNav() {

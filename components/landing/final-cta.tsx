@@ -16,10 +16,10 @@ const SparklesCore = dynamic(() => import("@/components/ui/sparkles").then((m) =
 });
 
 const TEAM = [
-  { id: 1, name: "Frontend", designation: "Next.js · UI", image: avatarDataUri("Front End", "#7c5cff", "#a493ff") },
-  { id: 2, name: "Backend", designation: "Prisma · API", image: avatarDataUri("Back End", "#ff9a5c", "#ff6fa8") },
-  { id: 3, name: "QA", designation: "Vitest · Playwright", image: avatarDataUri("Q A", "#3ddc97", "#5cc8ff") },
-  { id: 4, name: "DevOps", designation: "Actions · Railway", image: avatarDataUri("Dev Ops", "#5cc8ff", "#7c5cff") },
+  { id: 1, name: "Dirección", designation: "Ventas y ganancias del día", image: avatarDataUri("Dirección General", "#7c5cff", "#a493ff") },
+  { id: 2, name: "Ventas", designation: "Catálogo y nuevos pedidos", image: avatarDataUri("Ventas", "#ff9a5c", "#ff6fa8") },
+  { id: 3, name: "Almacén", designation: "Pedidos por preparar", image: avatarDataUri("Almacén", "#3ddc97", "#5cc8ff") },
+  { id: 4, name: "Atención", designation: "Respuestas claras al cliente", image: avatarDataUri("Atención Clientes", "#5cc8ff", "#7c5cff") },
 ];
 
 export function FinalCta() {
@@ -58,13 +58,13 @@ export function FinalCta() {
           borderClassName="bg-[radial-gradient(#7c5cff_40%,transparent_60%)]"
           className="gap-2 border-white/10 bg-[#0d0d13]/90 text-base font-medium text-white"
         >
-          Comenzar ahora <ArrowRight className="size-4" />
+          Empieza hoy <ArrowRight className="size-4" />
         </MovingBorderButton>
         <div className="mt-10 flex items-center gap-4">
           <div className="flex">
             <AnimatedTooltip items={TEAM} />
           </div>
-          <span className="ml-4 text-sm text-white/45">Hecho por un equipo full-stack</span>
+          <span className="ml-4 text-sm text-white/45">Una sola herramienta para todo tu equipo</span>
         </div>
       </LampContainer>
     </section>
@@ -78,11 +78,11 @@ export function Footer() {
         <Logo />
         <nav aria-label="Pie de página" className="flex flex-wrap justify-center gap-6 text-sm text-white/50">
           <a href="#producto" className="hover:text-white">Producto</a>
-          <a href="#analitica" className="hover:text-white">Analítica</a>
-          <a href="#kanban" className="hover:text-white">Kanban</a>
+          <a href="#analitica" className="hover:text-white">Ventas</a>
+          <a href="#kanban" className="hover:text-white">Pedidos</a>
           <Link href="/login" className="hover:text-white">Iniciar sesión</Link>
         </nav>
-        <p className="font-mono text-xs text-white/35">© {new Date().getFullYear()} OmniMarket · MXN · es-MX</p>
+        <p className="font-mono text-xs text-white/35">© {new Date().getFullYear()} OmniMarket · Hecho en México</p>
       </div>
     </footer>
   );
