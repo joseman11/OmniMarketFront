@@ -40,6 +40,9 @@ type WebcamPixelGridProps = {
   onWebcamReady?: () => void;
 };
 
+/** Tope de DPR: a 3× el buffer del canvas crece 2.25× respecto a 2× sin mejora visible. */
+const MAX_DPR = 2;
+
 type PixelData = {
   r: number;
   g: number;
@@ -72,6 +75,8 @@ export const WebcamPixelGrid: React.FC<WebcamPixelGridProps> = ({
   const processingCanvasRef = useRef<HTMLCanvasElement>(null);
   const displayCanvasRef = useRef<HTMLCanvasElement>(null);
   const previousFrameRef = useRef<Uint8ClampedArray | null>(null);
+  /** Tamaño CSS y DPR del canvas visible; se actualiza sólo al redimensionar. */
+  const displaySizeRef = useRef({ width: 0, height: 0, dpr: 1 });
   const pixelDataRef = useRef<PixelData[][]>([]);
   const animationRef = useRef<number>(0);
   const [showErrorPopup, setShowErrorPopup] = useState(true);
@@ -128,6 +133,35 @@ export const WebcamPixelGrid: React.FC<WebcamPixelGridProps> = ({
     if (camera.status === "error") onWebcamErrorRef.current?.(camera.error);
   }, [camera]);
 
+  // El canvas de proceso sólo cambia de tamaño si cambia la rejilla (asignar width/height
+  // reinicia el buffer aunque el valor sea el mismo).
+  useEffect(() => {
+    const canvas = processingCanvasRef.current;
+    if (!canvas) return;
+    canvas.width = gridCols;
+    canvas.height = gridRows;
+    previousFrameRef.current = null;
+  }, [gridCols, gridRows]);
+
+  // El canvas visible se dimensiona sólo en resize (ResizeObserver), con DPR acotado.
+  useEffect(() => {
+    const canvas = displayCanvasRef.current;
+    if (!canvas) return;
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      displaySizeRef.current = { width, height, dpr };
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+    };
+    resize();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(resize);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, []);
+
   // Main render loop
   const render = useCallback(() => {
     const video = videoRef.current;
@@ -148,10 +182,6 @@ export const WebcamPixelGrid: React.FC<WebcamPixelGridProps> = ({
       animationRef.current = requestAnimationFrame(render);
       return;
     }
-
-    // Set processing canvas size to grid dimensions
-    processingCanvas.width = gridCols;
-    processingCanvas.height = gridRows;
 
     // Draw video to processing canvas (scaled down)
     procCtx.save();
@@ -234,17 +264,20 @@ export const WebcamPixelGrid: React.FC<WebcamPixelGridProps> = ({
       }
     }
 
-    // Store current frame for next comparison
-    previousFrameRef.current = new Uint8ClampedArray(currentData);
+    // Store current frame for next comparison (buffer reutilizado entre frames)
+    if (!previousFrameRef.current || previousFrameRef.current.length !== currentData.length) {
+      previousFrameRef.current = new Uint8ClampedArray(currentData.length);
+    }
+    previousFrameRef.current.set(currentData);
 
     // Render to display canvas
-    const dpr = window.devicePixelRatio || 1;
-    const displayWidth = displayCanvas.clientWidth;
-    const displayHeight = displayCanvas.clientHeight;
-
-    displayCanvas.width = displayWidth * dpr;
-    displayCanvas.height = displayHeight * dpr;
-    dispCtx.scale(dpr, dpr);
+    const { width: displayWidth, height: displayHeight, dpr } = displaySizeRef.current;
+    if (displayWidth === 0 || displayHeight === 0) {
+      animationRef.current = requestAnimationFrame(render);
+      return;
+    }
+    // Sin redimensionar el buffer: sólo se fija la transformación del frame.
+    dispCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // Clear canvas
     dispCtx.fillStyle = backgroundColor;
