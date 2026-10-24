@@ -3,6 +3,15 @@ import type { NextConfig } from "next";
 
 const backendUrl = (process.env.OMNIMARKET_API_URL ?? "http://localhost:3001").replace(/\/$/, "");
 
+// Los rewrites se fijan en el build: sin OMNIMARKET_API_URL un deploy en Vercel proxificaría a localhost
+// y todo /api/auth/* fallaría en silencio. Mejor romper el build con un mensaje claro.
+if (process.env.VERCEL && /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(backendUrl)) {
+  throw new Error(
+    "OMNIMARKET_API_URL no está configurada en Vercel. Usa el dominio estable del backend " +
+      "(p. ej. https://omni-market-back.vercel.app), no la URL de un deployment concreto.",
+  );
+}
+
 const nextConfig: NextConfig = {
   // Hay otro lockfile fuera del repo; fijamos la raíz para el tracing y Turbopack.
   outputFileTracingRoot: path.join(__dirname),
