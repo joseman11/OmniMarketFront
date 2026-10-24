@@ -1,15 +1,10 @@
 import { headers } from "next/headers";
 import { assertProductionConfig, isTestEnvironment } from "@/lib/env-guard";
+import { parseBackendSession, type BackendUser } from "@/lib/server/session-schema";
 
 assertProductionConfig();
 
-export type BackendUser = {
-  id: string;
-  email: string;
-  name: string | null;
-  image: string | null;
-  role: "ADMIN" | "OPERATOR";
-};
+export type { BackendUser } from "@/lib/server/session-schema";
 
 export const backendUrl = (process.env.OMNIMARKET_API_URL ?? "http://localhost:3001").replace(/\/$/, "");
 
@@ -32,8 +27,7 @@ export async function getBackendUser(): Promise<BackendUser | null> {
       cache: "no-store",
     });
     if (!response.ok) return null;
-    const body = (await response.json()) as { user?: BackendUser | null };
-    return body.user ?? null;
+    return parseBackendSession(await response.json());
   } catch {
     return null;
   }
