@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChevronsUpDown, Home, LogOut } from "lucide-react";
 import { useTransition } from "react";
 import { signOutAction } from "@/app/dashboard/actions";
+import { useSessionScope } from "@/components/dashboard/session-scope";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +32,7 @@ export function UserAvatar({ user, className }: { user: ShellUser; className?: s
 
 export function UserMenu({ user, collapsed }: { user: ShellUser; collapsed?: boolean }) {
   const [pending, startTransition] = useTransition();
+  const session = useSessionScope();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -71,7 +73,10 @@ export function UserMenu({ user, collapsed }: { user: ShellUser; collapsed?: boo
           variant="destructive"
           data-testid="sign-out"
           disabled={pending}
-          onSelect={() => startTransition(() => signOutAction())}
+          onSelect={() => {
+            session.beginSignOut();
+            startTransition(() => signOutAction());
+          }}
         >
           <LogOut className="size-4" /> {pending ? "Cerrando sesión…" : "Cerrar sesión"}
         </DropdownMenuItem>

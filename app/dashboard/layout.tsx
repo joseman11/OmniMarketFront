@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { SessionScope } from "@/components/dashboard/session-scope";
 import { DashboardShell } from "@/components/dashboard/shell";
 import { getBackendUser } from "@/lib/server/session";
 
@@ -15,5 +16,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
     canManageCatalog: true,
   };
 
-  return <DashboardShell user={user}>{children}</DashboardShell>;
+  // La caché de datos pertenece a esta identidad: cambiarla remonta el árbol.
+  return (
+    <SessionScope key={backendUser.id} userId={backendUser.id}>
+      <DashboardShell user={user}>{children}</DashboardShell>
+    </SessionScope>
+  );
 }
