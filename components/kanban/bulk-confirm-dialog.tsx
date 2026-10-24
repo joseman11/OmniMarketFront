@@ -20,6 +20,7 @@ export function BulkConfirmDialog({
   pending,
   onConfirm,
   onOpenChange,
+  onCloseAutoFocus,
 }: {
   target: OrderStatus | null;
   count: number;
@@ -27,11 +28,13 @@ export function BulkConfirmDialog({
   pending: boolean;
   onConfirm: () => void;
   onOpenChange: (open: boolean) => void;
+  /** Retorno de foco al cerrar (la barra que lo abrió desaparece tras aplicar). */
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   const meta = target ? STATUS_META[target] : null;
   return (
     <Dialog open={target !== null} onOpenChange={(o) => !pending && onOpenChange(o)}>
-      <DialogContent className="border-white/10 bg-[#0e0e15] sm:max-w-md">
+      <DialogContent onCloseAutoFocus={onCloseAutoFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Confirmar actualización masiva</DialogTitle>
           <DialogDescription>

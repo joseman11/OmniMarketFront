@@ -36,6 +36,7 @@ import { ApiError } from "@/lib/api/client";
 import { ORDER_STATUSES, type CreateOrderInput, type KanbanCard, type OrderStatus } from "@/lib/api/schemas";
 import { useKanbanController } from "@/components/kanban/use-kanban-controller";
 import { isAnalyticsKey, useProducts } from "@/lib/hooks/use-api";
+import { useReturnFocus } from "@/lib/hooks/use-return-focus";
 import {
   findContainer,
   isStatus,
@@ -89,6 +90,12 @@ export function KanbanBoard() {
   const [bulkTarget, setBulkTarget] = useState<OrderStatus | null>(null);
   const [bulkPending, setBulkPending] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  // Destinos de foco estables cuando el invocador no existe (?new=1, barra de bulk ya oculta).
+  const createButtonRef = useRef<HTMLButtonElement>(null);
+  const boardRegionRef = useRef<HTMLDivElement>(null);
+  const createReturnFocus = useReturnFocus(createOpen, createButtonRef);
+  const bulkAppliedRef = useRef(false);
+  const bulkReturnFocus = useReturnFocus(bulkTarget !== null, boardRegionRef, bulkAppliedRef);
   /** Escrituras bloqueadas mientras otra está pendiente o el tablero no está sincronizado. */
   const writesLocked = phase !== "idle";
 
@@ -326,6 +333,7 @@ export function KanbanBoard() {
       }
       if (outcome.write === "saved") {
         refreshAnalytics();
+        bulkAppliedRef.current = true; // la barra de selección que lo abrió se oculta
         setSelected(new Set());
         setBulkTarget(null);
         if (outcome.synchronized) {
@@ -404,7 +412,7 @@ export function KanbanBoard() {
             >
               <RefreshCw className={cn("size-3.5", isValidating && "opacity-40")} /> Recargar
             </Button>
-            <Button size="sm" className="h-8" data-testid="order-create-open" onClick={() => setCreateOpen(true)}>
+            <Button ref={createButtonRef} size="sm" className="h-8" data-testid="order-create-open" onClick={() => setCreateOpen(true)}>
               <Plus className="size-3.5" /> Nueva orden
             </Button>
           </>
@@ -444,6 +452,8 @@ export function KanbanBoard() {
             }}
           >
             <div
+              ref={boardRegionRef}
+              tabIndex={-1}
               className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-6 md:-mx-8 md:scroll-px-8 md:px-8 xl:snap-none"
               role="region"
               aria-label="Tablero Kanban"
@@ -494,11 +504,13 @@ export function KanbanBoard() {
         pending={bulkPending}
         onConfirm={() => void confirmBulk()}
         onOpenChange={(o) => !o && setBulkTarget(null)}
+        onCloseAutoFocus={bulkReturnFocus}
       />
       <CreateOrderDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
         onCreate={createOrder}
+        onCloseAutoFocus={createReturnFocus}
         products={productsQuery.data?.data.items ?? []}
         productsLoading={!productsQuery.data && !productsQuery.error}
       />

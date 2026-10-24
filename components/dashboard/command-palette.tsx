@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { LogOut, Plus } from "lucide-react";
-import { useEffect, useTransition } from "react";
+import { useEffect, useTransition, type RefObject } from "react";
 import { signOutAction } from "@/app/dashboard/actions";
 import {
   Command,
@@ -17,8 +17,19 @@ import {
 } from "@/components/ui/command";
 import { NAV_ITEMS } from "@/components/dashboard/nav";
 import { useSessionScope } from "@/components/dashboard/session-scope";
+import { useReturnFocus } from "@/lib/hooks/use-return-focus";
 
-export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+export function CommandPalette({
+  open,
+  onOpenChange,
+  returnFocusRef,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  /** Destino de foco si la paleta se abrió con ⌘K sin un invocador enfocado. */
+  returnFocusRef?: RefObject<HTMLElement | null>;
+}) {
+  const returnFocus = useReturnFocus(open, returnFocusRef);
   const router = useRouter();
   const [, startTransition] = useTransition();
   const session = useSessionScope();
@@ -46,6 +57,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
       title="Paleta de comandos"
       description="Busca una sección o acción"
       className="border-white/10 bg-[#0e0e15]/95 backdrop-blur-xl"
+      onCloseAutoFocus={returnFocus}
     >
       {/* cmdk exige su raíz <Command>: sin ella CommandInput/CommandItem fallan al montar. */}
       <Command className="bg-transparent">

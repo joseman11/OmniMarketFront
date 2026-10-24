@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, api } from "@/lib/api/client";
 import { isAnalyticsKey, useProducts } from "@/lib/hooks/use-api";
 import { useOrderDraft, type OrderDraftLine } from "@/lib/hooks/use-order-draft";
+import { useReturnFocus } from "@/lib/hooks/use-return-focus";
 import type { ApiProduct, BackendOrderDetail } from "@/lib/api/schemas";
 import { formatCurrency, formatPercent, formatRelativeTime } from "@/lib/format";
 import { marginRatio } from "@/lib/finance";
@@ -77,6 +78,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
   const [reloading, setReloading] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const deleteReturnFocus = useReturnFocus(deleteOpen);
   const order = data?.data.item;
   // El borrador pertenece a esta orden; las revalidaciones de `order` no lo tocan.
   const editing = draft !== null && draft.orderId === order?.id;
@@ -209,7 +211,7 @@ export function OrderDetail({ orderId }: { orderId: string }) {
       </div>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="border-white/10 bg-[#0e0e15] sm:max-w-md">
+        <DialogContent onCloseAutoFocus={deleteReturnFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
           <DialogHeader><DialogTitle>Eliminar orden</DialogTitle><DialogDescription>Se eliminará {order.orderNumber} y sus líneas. Esta operación no se puede deshacer.</DialogDescription></DialogHeader>
           <DialogFooter><Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={deleting}>Cancelar</Button><Button variant="destructive" onClick={() => void removeOrder()} disabled={deleting}><Trash2 className="size-3.5" />{deleting ? "Eliminando…" : "Eliminar orden"}</Button></DialogFooter>
         </DialogContent>

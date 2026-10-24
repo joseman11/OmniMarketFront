@@ -46,8 +46,11 @@ export function CreateOrderDialog({
   onCreate,
   products,
   productsLoading,
+  onCloseAutoFocus,
 }: {
   open: boolean;
+  /** Retorno de foco al cerrar (el diálogo se abre por estado, no por DialogTrigger). */
+  onCloseAutoFocus?: (event: Event) => void;
   onOpenChange: (open: boolean) => void;
   products: ApiProduct[];
   productsLoading: boolean;
@@ -97,7 +100,7 @@ export function CreateOrderDialog({
         if (!o) reset(DEFAULTS);
       }}
     >
-      <DialogContent className="max-h-[90svh] overflow-y-auto border-white/10 bg-[#0e0e15] sm:max-w-lg">
+      <DialogContent onCloseAutoFocus={onCloseAutoFocus} className="max-h-[90svh] overflow-y-auto border-white/10 bg-[#0e0e15] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Nueva orden</DialogTitle>
           <DialogDescription>Los datos se validan con Zod antes de enviarse al servidor.</DialogDescription>

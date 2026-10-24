@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCategories, useProductDetail, useProducts } from "@/lib/hooks/use-api";
+import { useReturnFocus } from "@/lib/hooks/use-return-focus";
 import { ApiError, api } from "@/lib/api/client";
 import { categoryInputSchema, productInputSchema, type ApiCategory, type ApiProduct } from "@/lib/api/schemas";
 import { formatCurrency } from "@/lib/format";
@@ -115,6 +116,14 @@ export function CatalogManager() {
   const detail = useProductDetail(detailProductId);
   const productDetail = detail.data ?? null;
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+
+  // Retorno de foco al invocador; si su fila desapareció (p. ej. tras eliminar), a la búsqueda.
+  const searchRef = useRef<HTMLInputElement>(null);
+  const categoryReturnFocus = useReturnFocus(categoryOpen, searchRef);
+  const productReturnFocus = useReturnFocus(productOpen, searchRef);
+  const detailReturnFocus = useReturnFocus(detailProductId !== null, searchRef);
+  const deletedRef = useRef(false);
+  const deleteReturnFocus = useReturnFocus(deleteTarget !== null, searchRef, deletedRef);
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -248,6 +257,7 @@ export function CatalogManager() {
     try {
       if (deleteTarget.kind === "categories") await api.deleteCategory(deleteTarget.id);
       else await api.deleteProduct(deleteTarget.id);
+      deletedRef.current = true; // la fila que abrió el diálogo va a desaparecer
       setDeleteTarget(null);
       await refreshGlobal((key) => key === "categories" || (Array.isArray(key) && key[0] === "products"));
       toast.success(deleteTarget.kind === "categories" ? "Categoría eliminada" : "Producto eliminado");
@@ -316,7 +326,7 @@ export function CatalogManager() {
           action={
             <label className="relative block w-52 max-w-[55vw]">
               <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-white/35" />
-              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar…" className="h-8 pl-8 text-xs" aria-label="Buscar en el catálogo" />
+              <Input ref={searchRef} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar…" className="h-8 pl-8 text-xs" aria-label="Buscar en el catálogo" />
             </label>
           }
           className="min-w-0 p-0 md:p-0 [&>header]:px-5 [&>header]:pt-5 md:[&>header]:px-6 md:[&>header]:pt-6"
@@ -368,7 +378,7 @@ export function CatalogManager() {
       </div>
 
       <Dialog open={categoryOpen} onOpenChange={setCategoryDialogOpen}>
-        <DialogContent className="border-white/10 bg-[#0e0e15] sm:max-w-md">
+        <DialogContent onCloseAutoFocus={categoryReturnFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
           <DialogHeader><DialogTitle>{categoryId ? "Editar categoría" : "Nueva categoría"}</DialogTitle><DialogDescription>El slug se usa en reportes y se genera a partir del nombre.</DialogDescription></DialogHeader>
           <form onSubmit={saveCategory} className="grid gap-4">
             <TextField label="Nombre" value={categoryForm.name} onChange={(name) => setCategoryForm((form) => ({ ...form, name, slug: slugFrom(name) }))} placeholder="Ej. Hogar" />
@@ -380,7 +390,7 @@ export function CatalogManager() {
       </Dialog>
 
       <Dialog open={productOpen} onOpenChange={setProductDialogOpen}>
-        <DialogContent className="max-h-[90svh] overflow-y-auto border-white/10 bg-[#0e0e15] sm:max-w-xl">
+        <DialogContent onCloseAutoFocus={productReturnFocus} className="max-h-[90svh] overflow-y-auto border-white/10 bg-[#0e0e15] sm:max-w-xl">
           <DialogHeader><DialogTitle>{productId ? "Editar producto" : "Nuevo producto"}</DialogTitle><DialogDescription>Los pedidos guardan el precio y costo vigentes al momento de crearse.</DialogDescription></DialogHeader>
           <form onSubmit={saveProduct} className="grid gap-4">
             <fieldset disabled={productLoading} aria-busy={productLoading} className="grid min-w-0 gap-4 disabled:opacity-60 sm:grid-cols-2">
@@ -399,7 +409,7 @@ export function CatalogManager() {
       </Dialog>
 
       <Dialog open={detailProductId !== null} onOpenChange={(open) => !open && setDetailProductId(null)}>
-        <DialogContent className="border-white/10 bg-[#0e0e15] sm:max-w-md">
+        <DialogContent onCloseAutoFocus={detailReturnFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
           <DialogHeader><DialogTitle>Detalle del producto</DialogTitle><DialogDescription>Consulta directa del registro en el backend.</DialogDescription></DialogHeader>
           {detail.error && !productDetail ? <ErrorState message={`No se pudo consultar el producto: ${messageFrom(detail.error)}`} onRetry={() => void detail.mutate()} /> : detail.isLoading || !productDetail ? <Skeleton className="h-32 w-full" /> : productDetail ? <div className="grid grid-cols-2 gap-3 text-sm"><div className="text-white/40">Nombre</div><div className="text-right text-white">{productDetail.name}</div><div className="text-white/40">SKU</div><div className="text-right font-mono text-white">{productDetail.sku}</div><div className="text-white/40">Categoría</div><div className="text-right text-white">{productDetail.category.name}</div><div className="text-white/40">Precio</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.price)}</div><div className="text-white/40">Costo</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.cost)}</div><div className="text-white/40">Existencia</div><div className="text-right font-mono text-white">{productDetail.stock}</div></div> : null}
           <DialogFooter>{canManageCatalog && productDetail && <Button variant="outline" onClick={() => { setDetailProductId(null); void openProductForm(productDetail); }}><Pencil className="size-3.5" /> Editar</Button>}<Button variant="ghost" onClick={() => setDetailProductId(null)}>Cerrar</Button></DialogFooter>
@@ -407,7 +417,7 @@ export function CatalogManager() {
       </Dialog>
 
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && !deletePending && setDeleteTarget(null)}>
-        <DialogContent className="border-white/10 bg-[#0e0e15] sm:max-w-md">
+        <DialogContent onCloseAutoFocus={deleteReturnFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
           <DialogHeader><DialogTitle>Confirmar eliminación</DialogTitle><DialogDescription>Se eliminará “{deleteTarget?.label}”. La operación puede rechazarse si el registro tiene relaciones activas.</DialogDescription></DialogHeader>
           <DialogFooter><Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={deletePending}>Cancelar</Button><Button variant="destructive" onClick={() => void confirmDelete()} disabled={deletePending}>{deletePending ? "Eliminando…" : "Eliminar"}</Button></DialogFooter>
         </DialogContent>
