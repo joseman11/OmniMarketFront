@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import React, { useEffect, useState } from "react";
+import React from "react";
 
 type Testimonial = { quote: string; name: string; title: string };
 
@@ -26,83 +26,31 @@ export const InfiniteMovingCards = <T extends { name: string } = Testimonial>({
   /** Render personalizado (p. ej. logos). Si se omite se usa la tarjeta de testimonio. */
   renderItem?: (item: T, idx: number) => React.ReactNode;
 }) => {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const scrollerRef = React.useRef<HTMLUListElement>(null);
+  // Copias declarativas: React es dueño de ambas listas, así que StrictMode y los cambios de
+  // items/dirección/velocidad no duplican nodos (antes cloneNode sin cleanup → 2N, 4N…).
+  const style = {
+    "--animation-direction": direction === "left" ? "forwards" : "reverse",
+    "--animation-duration": speed === "fast" ? "20s" : speed === "normal" ? "40s" : "80s",
+  } as React.CSSProperties;
 
-  useEffect(() => {
-    addAnimation();
-  }, []);
-  const [start, setStart] = useState(false);
-  function addAnimation() {
-    if (containerRef.current && scrollerRef.current) {
-      const scrollerContent = Array.from(scrollerRef.current.children);
-
-      scrollerContent.forEach((item) => {
-        const duplicatedItem = item.cloneNode(true) as HTMLElement;
-        duplicatedItem.setAttribute("aria-hidden", "true");
-        if (scrollerRef.current) {
-          scrollerRef.current.appendChild(duplicatedItem);
-        }
-      });
-
-      getDirection();
-      getSpeed();
-      setStart(true);
-    }
-  }
-  const getDirection = () => {
-    if (containerRef.current) {
-      if (direction === "left") {
-        containerRef.current.style.setProperty(
-          "--animation-direction",
-          "forwards",
-        );
-      } else {
-        containerRef.current.style.setProperty(
-          "--animation-direction",
-          "reverse",
-        );
-      }
-    }
-  };
-  const getSpeed = () => {
-    if (containerRef.current) {
-      if (speed === "fast") {
-        containerRef.current.style.setProperty("--animation-duration", "20s");
-      } else if (speed === "normal") {
-        containerRef.current.style.setProperty("--animation-duration", "40s");
-      } else {
-        containerRef.current.style.setProperty("--animation-duration", "80s");
-      }
-    }
-  };
-  return (
-    <div
-      ref={containerRef}
-      className={cn(
-        "scroller relative z-20 max-w-7xl overflow-hidden [mask-image:linear-gradient(to_right,transparent,white_20%,white_80%,transparent)]",
-        className,
-      )}
-    >
-      <ul
-        ref={scrollerRef}
-        className={cn(
-          "flex w-max min-w-full shrink-0 flex-nowrap gap-4 py-4",
-          start && "animate-scroll",
-          pauseOnHover && "hover:[animation-play-state:paused]",
-          paused && "[animation-play-state:paused]",
-        )}
-      >
-        {renderItem
-          ? items.map((item, idx) => (
-              <li key={item.name} className={cn("shrink-0", itemClassName)}>
-                {renderItem(item, idx)}
-              </li>
-            ))
-          : (items as unknown as Testimonial[]).map((item) => (
+  const renderList = (copy: boolean) =>
+    renderItem
+      ? items.map((item, idx) => (
+          <li
+            key={`${copy ? "copy" : "item"}-${item.name}`}
+            className={cn("shrink-0", itemClassName)}
+            aria-hidden={copy || undefined}
+            inert={copy || undefined}
+          >
+            {renderItem(item, idx)}
+          </li>
+        ))
+      : (items as unknown as Testimonial[]).map((item) => (
           <li
             className="relative w-[350px] max-w-full shrink-0 rounded-2xl border border-b-0 border-zinc-200 bg-[linear-gradient(180deg,#fafafa,#f5f5f5)] px-8 py-6 md:w-[450px] dark:border-zinc-700 dark:bg-[linear-gradient(180deg,#27272a,#18181b)]"
-            key={item.name}
+            key={`${copy ? "copy" : "item"}-${item.name}`}
+            aria-hidden={copy || undefined}
+            inert={copy || undefined}
           >
             <blockquote>
               <div
@@ -124,7 +72,25 @@ export const InfiniteMovingCards = <T extends { name: string } = Testimonial>({
               </div>
             </blockquote>
           </li>
-        ))}
+        ));
+
+  return (
+    <div
+      style={style}
+      className={cn(
+        "scroller relative z-20 max-w-7xl overflow-hidden [mask-image:linear-gradient(to_right,transparent,white_20%,white_80%,transparent)]",
+        className,
+      )}
+    >
+      <ul
+        className={cn(
+          "flex w-max min-w-full shrink-0 flex-nowrap gap-4 py-4 animate-scroll",
+          pauseOnHover && "hover:[animation-play-state:paused]",
+          paused && "[animation-play-state:paused]",
+        )}
+      >
+        {renderList(false)}
+        {renderList(true)}
       </ul>
     </div>
   );

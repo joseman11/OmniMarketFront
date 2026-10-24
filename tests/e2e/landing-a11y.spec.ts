@@ -29,4 +29,12 @@ test.describe("Landing · movimiento y tooltips accesibles", () => {
     await page.keyboard.press("Escape");
     await expect(tooltip).toHaveCount(0);
   });
+
+  test("el marquee tiene exactamente una copia decorativa (idempotente en StrictMode)", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    const items = page.getByRole("region", { name: "Beneficios" }).locator("ul > li");
+    await expect(items).toHaveCount(16);
+    await expect(page.getByRole("region", { name: "Beneficios" }).locator('ul > li[aria-hidden="true"][inert]')).toHaveCount(8);
+  });
 });
