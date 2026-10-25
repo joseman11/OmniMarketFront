@@ -73,7 +73,7 @@ Usa `npm run scrape:production -- --json` para obtener un informe JSON. Los orí
 
 ## Vercel y CI/CD
 
-Conecta ambos repositorios a sus proyectos Vercel. En GitHub Actions el check requerido es `Frontend CI Gate` para el frontend y `Backend CI Gate` para el backend. En cada proyecto Vercel, agrega el check correspondiente en **Settings → Deployment Checks → GitHub Checks** para que una falla detenga la promoción a producción. En el proyecto frontend configura:
+Conecta ambos repositorios a sus proyectos Vercel. En GitHub Actions el check requerido es `Frontend CI Gate` para el frontend y `Backend CI Gate` para el backend. En cada proyecto Vercel, agrega el check correspondiente en **Settings → Deployment Checks → GitHub Checks** para que una falla detenga la promoción a producción. El despliegue a producción lo hace la CI (`deploy` tras `quality` y `e2e`, seguido de `smoke`); los secretos y los ajustes manuales de GitHub y Vercel están en [`docs/DEPLOY.md`](docs/DEPLOY.md). En el proyecto frontend configura:
 
 - `OMNIMARKET_API_URL`: URL estable del backend accesible desde el servidor Next.js.
 - `NEXT_PUBLIC_USE_MOCKS=false`.
