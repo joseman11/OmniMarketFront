@@ -30,7 +30,7 @@ Antes de llamar la CLI, el workflow comprueba que `VERCEL_TOKEN`, `VERCEL_ORG_ID
 
 `orgId` y `projectId` se obtienen ejecutando `vercel link` en este repositorio (crea `.vercel/project.json`, que está fuera de git) o en Vercel: **Project → Settings → General → Project ID** y **Team → Settings → General → Team ID**.
 
-Sin `PRODUCTION_URL`, el smoke usa la URL única del deployment; si **Deployment Protection** está activa, esa URL responde 401 y el smoke falla.
+`PRODUCTION_URL` es obligatoria para el smoke y debe ser el dominio público estable asignado al proyecto en Vercel (Project → Settings → Domains), no la URL única del deployment. Sin la variable, el smoke falla con un mensaje claro en vez de probar una URL posiblemente protegida. Con **Standard Protection**, las URLs únicas de deployment pueden requerir autenticación mientras el dominio de producción sigue público; si el dominio estable también redirige, revisa si el proyecto está en **All Deployments** o si la aplicación genera la redirección.
 
 `vercel build` usa las variables de entorno de producción del proyecto en Vercel (`OMNIMARKET_API_URL`, `NEXT_PUBLIC_USE_MOCKS=false`…); no hace falta duplicarlas en GitHub.
 

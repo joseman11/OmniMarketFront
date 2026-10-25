@@ -188,10 +188,15 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
-      # Dominio público estable (variable del repositorio). La URL del deployment es solo el respaldo:
-      # Deployment Protection de Vercel puede responder 401 en ella.
-      PUBLIC_URL: ${{ vars.PRODUCTION_URL || needs.deploy.outputs.url }}
+      # Debe ser el dominio de producción estable; las URLs únicas pueden tener Deployment Protection.
+      PUBLIC_URL: ${{ vars.PRODUCTION_URL }}
     steps:
+      - name: Validar dominio público de producción
+        run: |
+          if [ -z "$PUBLIC_URL" ]; then
+            echo "::error::Configura la variable de Actions PRODUCTION_URL con el dominio público estable del proyecto Front en Vercel."
+            exit 1
+          fi
       # next.config.ts reenvía /api/test/* al backend: son las rutas del lineamiento sobre el dominio público.
       - name: Endpoints de auditoría responden 200
         run: |
@@ -199,8 +204,13 @@ jobs:
           case "$base" in http*) ;; *) base="https://${base}" ;; esac
           failed=0
           for path in "/api/test/analytics?page=1&limit=50" "/api/test/kanban-status?orderNumber=OM-TEST-1001"; do
-            status="$(curl -sS -o /dev/null -w '%{http_code}' --retry 3 --retry-delay 5 --retry-all-errors --max-time 20 "${base}${path}" || true)"
+            result="$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' --retry 3 --retry-delay 5 --retry-all-errors --max-time 20 "${base}${path}" || true)"
+            status="${result%% *}"
+            redirect="${result#* }"
             echo "${path} -> ${status}"
+            if [ "$status" != "200" ] && [ -n "$redirect" ] && [ "$redirect" != "$result" ]; then
+              echo "Redirect target: ${redirect%%\?*}"
+            fi
             [ "$status" = "200" ] || failed=1
           done
           exit "$failed"
