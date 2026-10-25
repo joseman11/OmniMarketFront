@@ -9,6 +9,10 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/catalog", label: "Catálogo", icon: Package, testId: "nav-catalog", description: "Productos y categorías" },
 ];
 
+/** `?nuevo=producto` abre el alta de producto del catálogo (enlace del estado vacío de «Nueva orden»). */
+export const NEW_PRODUCT_PARAM = { name: "nuevo", value: "producto" } as const;
+export const NEW_PRODUCT_HREF = `/dashboard/catalog?${NEW_PRODUCT_PARAM.name}=${NEW_PRODUCT_PARAM.value}`;
+
 export function isActive(pathname: string, href: string) {
   return href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
 }

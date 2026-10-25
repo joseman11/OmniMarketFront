@@ -1,12 +1,14 @@
 "use client";
 
-import { useId, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Tabs } from "radix-ui";
 import { useSWRConfig } from "swr";
 import { toast } from "sonner";
 import { Box, Pencil, Plus, RefreshCw, Search, Tags, Trash2 } from "lucide-react";
 import { PageHeader, Panel, ErrorState } from "@/components/dashboard/panel";
 import { useDashboardAccess } from "@/components/dashboard/access-context";
+import { NEW_PRODUCT_PARAM } from "@/components/dashboard/nav";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -54,6 +56,7 @@ function Field({ label, htmlFor, children }: { label: string; htmlFor: string; c
 
 const CATEGORY_ERROR_ID = "category-form-error";
 const PRODUCT_ERROR_ID = "product-form-error";
+const INLINE_CATEGORY_ERROR_ID = "inline-category-error";
 
 /** Campo al que pertenece el primer error de Zod (para aria-invalid/aria-describedby). */
 function issueField(error: { issues: { path: (string | number)[] }[] }) {
@@ -128,6 +131,10 @@ export function CatalogManager() {
   const [productError, setProductError] = useState("");
   const [productErrorField, setProductErrorField] = useState<string | null>(null);
   const [productLoading, setProductLoading] = useState(false);
+  // Alta de categoría dentro del formulario de producto cuando el catálogo aún no tiene ninguna.
+  const [inlineCategoryName, setInlineCategoryName] = useState("");
+  const [inlineCategoryPending, setInlineCategoryPending] = useState(false);
+  const [inlineCategoryError, setInlineCategoryError] = useState("");
   // Época del formulario de producto: cambia al abrir/cerrar. Una respuesta tardía
   // (getProduct o guardado) de una época anterior no toca el formulario vigente.
   const productRequest = useRef(0);
@@ -205,6 +212,8 @@ export function CatalogManager() {
     const request = ++productRequest.current;
     setProductError("");
     setProductErrorField(null);
+    setInlineCategoryName("");
+    setInlineCategoryError("");
     setProductId(product?.id ?? null);
     setProductForm(product ? {
       categoryId: product.categoryId,
@@ -245,9 +254,57 @@ export function CatalogManager() {
     }
   };
 
+  const createInlineCategory = async () => {
+    const parsed = categoryInputSchema.safeParse({ name: inlineCategoryName, slug: slugFrom(inlineCategoryName) });
+    if (!parsed.success) {
+      setInlineCategoryError(parsed.error.issues[0]?.message ?? "Revisa el nombre de la categoría.");
+      return;
+    }
+    if (inlineCategoryPending) return;
+    const request = productRequest.current;
+    setInlineCategoryPending(true);
+    setInlineCategoryError("");
+    try {
+      const result = await api.createCategory(parsed.data);
+      await refreshGlobal((key) => key === "categories");
+      if (request === productRequest.current) {
+        setProductForm((form) => ({ ...form, categoryId: result.data.item.id }));
+        setInlineCategoryName("");
+      }
+      toast.success("Categoría creada");
+    } catch (error) {
+      if (request === productRequest.current) setInlineCategoryError(messageFrom(error));
+    } finally {
+      setInlineCategoryPending(false);
+    }
+  };
+  /** Enter dentro del alta inline crea la categoría en lugar de enviar el formulario del producto. */
+  const onInlineCategoryKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    void createInlineCategory();
+  };
+
+  // Llegada desde «Crear producto» en el alta de orden: abrir el formulario una vez cargadas las categorías.
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const wantsNewProduct = searchParams.get(NEW_PRODUCT_PARAM.name) === NEW_PRODUCT_PARAM.value;
+  const newProductHandled = useRef(false);
+  const openProductFormRef = useRef(openProductForm);
+  useEffect(() => {
+    openProductFormRef.current = openProductForm;
+  });
+  useEffect(() => {
+    if (!wantsNewProduct || !canManageCatalog || categoriesQuery.isLoading || newProductHandled.current) return;
+    newProductHandled.current = true;
+    router.replace(pathname, { scroll: false });
+    void openProductFormRef.current();
+  }, [wantsNewProduct, canManageCatalog, categoriesQuery.isLoading, router, pathname]);
+
   /** Cancelar, X y Escape pasan por aquí: invalidan la época y no cierran mientras se guarda. */
   const setProductDialogOpen = (open: boolean) => {
-    if (!open && productPending) return;
+    if (!open && (productPending || inlineCategoryPending)) return;
     if (!open) productRequest.current++;
     setProductOpen(open);
   };
@@ -429,7 +486,19 @@ export function CatalogManager() {
           <DialogHeader><DialogTitle>{productId ? "Editar producto" : "Nuevo producto"}</DialogTitle><DialogDescription>Los pedidos guardan el precio y costo vigentes al momento de crearse.</DialogDescription></DialogHeader>
           <form onSubmit={saveProduct} className="grid gap-4">
             <fieldset disabled={productLoading} aria-busy={productLoading} className="grid min-w-0 gap-4 disabled:opacity-60 sm:grid-cols-2">
+            {categories.length === 0 && !categoriesQuery.isLoading ? (
+              <div className="grid gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 sm:col-span-2" data-testid="inline-category">
+                <Label htmlFor="inline-category-name">Categoría</Label>
+                <p className="text-xs text-subtle">Aún no tienes categorías. Crea la primera aquí y quedará seleccionada para este producto.</p>
+                <div className="flex gap-2">
+                  <Input id="inline-category-name" value={inlineCategoryName} onChange={(event) => setInlineCategoryName(event.target.value)} onKeyDown={onInlineCategoryKeyDown} placeholder="Ej. Hogar" aria-invalid={inlineCategoryError ? true : undefined} aria-describedby={inlineCategoryError ? INLINE_CATEGORY_ERROR_ID : undefined} disabled={inlineCategoryPending} />
+                  <Button type="button" variant="outline" onClick={() => void createInlineCategory()} disabled={inlineCategoryPending}><Plus className="size-3.5" /> {inlineCategoryPending ? "Creando…" : "Crear categoría"}</Button>
+                </div>
+                {inlineCategoryError && <p id={INLINE_CATEGORY_ERROR_ID} role="alert" className="text-sm text-danger">{inlineCategoryError}</p>}
+              </div>
+            ) : (
             <div className="sm:col-span-2"><Field label="Categoría" htmlFor="product-category"><select id="product-category" aria-invalid={productErrorField === "categoryId" ? true : undefined} aria-describedby={productErrorField === "categoryId" ? PRODUCT_ERROR_ID : undefined} value={productForm.categoryId} onChange={(event) => setProductForm((form) => ({ ...form, categoryId: event.target.value }))} className="h-9 w-full rounded-lg border border-white/10 bg-[#15151e] px-3 text-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-brand" required><option value="">Selecciona una categoría</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></Field></div>
+            )}
             <TextField label="Nombre" value={productForm.name} onChange={(name) => setProductForm((form) => ({ ...form, name }))} placeholder="Producto" errorId={productErrorField === "name" ? PRODUCT_ERROR_ID : undefined} />
             <TextField label="SKU" value={productForm.sku} onChange={(sku) => setProductForm((form) => ({ ...form, sku }))} placeholder="SKU-001" errorId={productErrorField === "sku" ? PRODUCT_ERROR_ID : undefined} />
             <TextField label="Precio" type="number" min={0} step="0.01" value={productForm.price} onChange={(price) => setProductForm((form) => ({ ...form, price }))} placeholder="0.00" errorId={productErrorField === "price" ? PRODUCT_ERROR_ID : undefined} />

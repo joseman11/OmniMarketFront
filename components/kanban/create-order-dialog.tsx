@@ -1,9 +1,11 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash2 } from "lucide-react";
+import { PackagePlus, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useMemo } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
+import { NEW_PRODUCT_HREF } from "@/components/dashboard/nav";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   createOrderInputSchema,
   type ApiProduct,
@@ -47,6 +50,7 @@ export function CreateOrderDialog({
   onCreate,
   products,
   productsLoading,
+  productsError = false,
   onCloseAutoFocus,
 }: {
   open: boolean;
@@ -55,6 +59,8 @@ export function CreateOrderDialog({
   onOpenChange: (open: boolean) => void;
   products: ApiProduct[];
   productsLoading: boolean;
+  /** El catálogo no se pudo cargar: no es lo mismo que un catálogo vacío. */
+  productsError?: boolean;
   /** Debe lanzar si el servidor falla (el diálogo se mantiene abierto). */
   onCreate: (input: CreateOrderInput) => Promise<void>;
 }) {
@@ -99,6 +105,7 @@ export function CreateOrderDialog({
   });
 
   const errors = formState.errors;
+  const catalogEmpty = products.length === 0 && !productsLoading && !productsError;
 
   return (
     <Dialog
@@ -115,6 +122,17 @@ export function CreateOrderDialog({
           <DialogDescription>Los datos se validan con Zod antes de enviarse al servidor.</DialogDescription>
         </DialogHeader>
 
+        {catalogEmpty ? (
+          <div className="grid justify-items-center gap-3 rounded-xl border border-dashed border-white/10 px-6 py-8 text-center" data-testid="order-empty-catalog">
+            <PackagePlus className="size-8 text-subtle" aria-hidden />
+            <p className="font-medium text-white">Aún no tienes productos activos</p>
+            <p className="max-w-sm text-sm text-subtle">Una orden necesita al menos un producto. Da de alta el primero en el catálogo y vuelve aquí.</p>
+            <DialogFooter className="mt-2 w-full sm:justify-center">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button asChild><Link href={NEW_PRODUCT_HREF}><Plus className="size-3.5" /> Crear producto</Link></Button>
+            </DialogFooter>
+          </div>
+        ) : (
         <form onSubmit={submit} noValidate className="grid gap-5" aria-label="Crear orden">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
@@ -199,17 +217,30 @@ export function CreateOrderDialog({
                     />
                     <FieldError id={`items-${index}-qty-error`} message={err?.quantity?.message} />
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Quitar producto ${index + 1}`}
-                    disabled={fields.length === 1}
-                    onClick={() => remove(index)}
-                    className="mt-0.5"
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
+                  {fields.length === 1 ? (
+                    // Un botón deshabilitado no recibe puntero ni foco: el tooltip cuelga de un envoltorio enfocable.
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span tabIndex={0} className="mt-0.5 inline-flex rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                          <Button type="button" variant="ghost" size="icon" aria-label={`Quitar producto ${index + 1}`} disabled>
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>Una orden necesita al menos un producto</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Quitar producto ${index + 1}`}
+                      onClick={() => remove(index)}
+                      className="mt-0.5"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
                 </div>
               );
             })}
@@ -224,8 +255,8 @@ export function CreateOrderDialog({
             >
               <Plus className="size-3.5" /> Agregar producto
             </Button>
-            {products.length === 0 && !productsLoading && (
-              <p className="text-xs text-subtle">El catálogo del backend no tiene productos activos para crear órdenes.</p>
+            {productsError && (
+              <p role="alert" className="text-xs text-danger">No se pudo cargar el catálogo de productos.</p>
             )}
             {productsLoading && <p className="text-xs text-subtle">Cargando catálogo…</p>}
           </fieldset>
@@ -246,6 +277,7 @@ export function CreateOrderDialog({
             </Button>
           </DialogFooter>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );

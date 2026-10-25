@@ -513,6 +513,7 @@ export function KanbanBoard() {
         onCloseAutoFocus={createReturnFocus}
         products={productsQuery.data?.data.items ?? []}
         productsLoading={!productsQuery.data && !productsQuery.error}
+        productsError={!productsQuery.data && !!productsQuery.error}
       />
     </div>
   );
