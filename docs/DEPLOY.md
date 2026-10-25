@@ -26,6 +26,8 @@ Repositorio del frontend → **Settings → Secrets and variables → Actions**.
 | Secret | `VERCEL_PROJECT_ID` | ID del proyecto **del frontend** (`projectId`) |
 | Variable | `PRODUCTION_URL` | Dominio público estable del frontend, p. ej. `https://<proyecto>.vercel.app` (sin barra final) |
 
+Antes de llamar la CLI, el workflow comprueba que `VERCEL_TOKEN`, `VERCEL_ORG_ID` y `VERCEL_PROJECT_ID` estén definidos. Si falta uno, el job muestra cuál secreto debe configurarse y detiene el despliegue.
+
 `orgId` y `projectId` se obtienen ejecutando `vercel link` en este repositorio (crea `.vercel/project.json`, que está fuera de git) o en Vercel: **Project → Settings → General → Project ID** y **Team → Settings → General → Team ID**.
 
 Sin `PRODUCTION_URL`, el smoke usa la URL única del deployment; si **Deployment Protection** está activa, esa URL responde 401 y el smoke falla.
