@@ -168,6 +168,7 @@ export function CreateOrderDialog({
             <legend className="mb-2 text-sm font-medium">Productos</legend>
             {fields.map((field, index) => {
               const err = errors.items?.[index];
+              const canRemoveLine = fields.length > 1 || !items?.[index]?.productId;
               return (
                 <div key={field.id} className="grid grid-cols-[1fr_88px_36px] items-start gap-2">
                   <div className="grid gap-1.5">
@@ -217,7 +218,7 @@ export function CreateOrderDialog({
                     />
                     <FieldError id={`items-${index}-qty-error`} message={err?.quantity?.message} />
                   </div>
-                  {fields.length === 1 ? (
+                  {!canRemoveLine ? (
                     // Un botón deshabilitado no recibe puntero ni foco: el tooltip cuelga de un envoltorio enfocable.
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -244,6 +245,7 @@ export function CreateOrderDialog({
                 </div>
               );
             })}
+            {fields.length === 0 && <p className="text-xs text-subtle">Agrega al menos un producto para continuar.</p>}
             <FieldError id="items-error" message={errors.items?.root?.message ?? errors.items?.message} />
             <Button
               type="button"

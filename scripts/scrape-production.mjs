@@ -118,7 +118,7 @@ function requireStatus(status) {
   return ({ response }) => expect(response.status === status, `HTTP ${response.status}; se esperaba ${status}.`);
 }
 
-function validateAnalytics({ response, body }) {
+function validateAnalytics({ response, body, url }) {
   expect(response.status === 200, `HTTP ${response.status}; se esperaba 200.`);
   expect(body && typeof body === "object", "La respuesta no es JSON válido.");
   const summary = body.summary;
@@ -127,7 +127,8 @@ function validateAnalytics({ response, body }) {
   expect(summary.revenue === "5360.00", `revenue=${summary.revenue}; se esperaba 5360.00.`);
   expect(summary.avgTicket === "1786.67", `avgTicket=${summary.avgTicket}; se esperaba 1786.67.`);
   expect(summary.grossMargin === "1625.00", `grossMargin=${summary.grossMargin}; se esperaba 1625.00.`);
-  expect(body.pagination?.page === 1 && body.pagination?.limit === 50, "La paginación no coincide con page=1 y limit=50.");
+  const expectedPage = Number(url.searchParams.get("page") ?? "1");
+  expect(body.pagination?.page === expectedPage && body.pagination?.limit === 50, `La paginación no coincide con page=${expectedPage} y limit=50.`);
   return `Ingresos ${summary.revenue}; ticket ${summary.avgTicket}; margen ${summary.grossMargin}`;
 }
 
@@ -190,17 +191,19 @@ Inspecciona ambos sitios con solicitudes GET; no modifica datos.
 
 // Probe analytics first on each origin so sample 1 records the least-warmed request.
 for (const target of ["backend", "frontend"]) {
-  for (let index = 0; index < config.repeats; index += 1) {
-    await check(
-      target,
-      `Analítica ${index + 1}/${config.repeats} (SLA ${config.slaMs} ms)`,
-      "/api/test/analytics?page=1&limit=50",
-      validateAnalytics,
-    );
-    const sample = results.at(-1);
-    if (sample.ok && sample.ms > config.slaMs) {
-      sample.ok = false;
-      sample.detail = `${sample.detail}; tardó ${sample.ms} ms, supera el límite de ${config.slaMs} ms.`;
+  for (const page of [1, 2]) {
+    for (let index = 0; index < config.repeats; index += 1) {
+      await check(
+        target,
+        `Analítica página ${page}, muestra ${index + 1}/${config.repeats} (SLA ${config.slaMs} ms)`,
+        `/api/test/analytics?page=${page}&limit=50`,
+        validateAnalytics,
+      );
+      const sample = results.at(-1);
+      if (sample.ok && sample.ms >= config.slaMs) {
+        sample.ok = false;
+        sample.detail = `${sample.detail}; tardó ${sample.ms} ms, debe ser inferior a ${config.slaMs} ms.`;
+      }
     }
   }
 }
@@ -221,7 +224,7 @@ for (const target of ["backend", "frontend"]) {
 const report = {
   generatedAt: new Date().toISOString(),
   origins: { frontend: config.front, backend: config.back },
-  criteria: { analyticsSlaMs: config.slaMs, analyticsSamplesPerOrigin: config.repeats },
+  criteria: { analyticsSlaMs: config.slaMs, analyticsSamplesPerOriginAndPage: config.repeats, analyticsPages: [1, 2] },
   summary: {
     passed: results.filter((item) => item.ok).length,
     failed: results.filter((item) => !item.ok && !item.skipped).length,
