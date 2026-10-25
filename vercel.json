@@ -3,6 +3,7 @@
   "headers": [
     {
       "source": "/api/test/analytics",
+      "missing": [{ "type": "cookie", "key": "omni_session" }],
       "headers": [
         { "key": "x-vercel-enable-rewrite-caching", "value": "1" }
       ]
