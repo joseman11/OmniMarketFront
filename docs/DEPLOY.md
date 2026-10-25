@@ -5,15 +5,15 @@ Producción se despliega **solo** desde `.github/workflows/ci.yml`, y solo si pa
 ```
 push a main → quality (lint · typecheck · unit · build)
             → e2e (Playwright), cypress y published-api, tras quality; Frontend CI Gate exige los cuatro
-            → deploy (vercel pull → build --prod → deploy --prebuilt --prod), tras quality y e2e
+            → deploy (vercel pull → build --prod → deploy --prebuilt --prod), solo tras Frontend CI Gate
             → smoke, tras deploy
 ```
 
-- `deploy` corre únicamente en `push` a `main` y necesita `quality` y `e2e`; en pull requests y en `dev` no se ejecuta. `cypress` y `published-api` siguen corriendo y forman parte de `Frontend CI Gate`, pero no condicionan el despliegue: `published-api` mide el backend ya publicado, y si condicionara el deploy, un backend caído impediría desplegar el arreglo del frontend.
+- `deploy` corre únicamente en `push` a `main` y necesita `ci-gate`. Si falla cualquiera de `quality`, `e2e`, `cypress` o `published-api`, `Frontend CI Gate` falla y `deploy` queda omitido. En pull requests y en `dev`, el deploy de producción no se ejecuta.
 - `smoke` llama, en el dominio público del frontend, a `/api/test/analytics?page=1&limit=50` y `/api/test/kanban-status?orderNumber=OM-TEST-1001`, y falla si alguna no responde 200. `next.config.ts` reenvía `/api/test/*` al backend, así que el smoke comprueba el deploy del frontend, su proxy y los endpoints de auditoría.
 - En `main` la CI no cancela una ejecución en curso al llegar otro push, y los despliegues de producción se encolan (`concurrency`), así que nunca se corta uno a medias.
 
-Nada de lo de abajo está aplicado: son ajustes en GitHub y en Vercel que hay que hacer a mano una vez.
+El workflow y `vercel.json` hacen que la Action sea la única ruta de despliegue de producción desde `main`. La protección para impedir merges con CI roja sí requiere una regla en GitHub.
 
 ## 1. Secretos y variable en GitHub
 
@@ -34,18 +34,11 @@ Sin `PRODUCTION_URL`, el smoke usa la URL única del deployment; si **Deployment
 
 `vercel build` usa las variables de entorno de producción del proyecto en Vercel (`OMNIMARKET_API_URL`, `NEXT_PUBLIC_USE_MOCKS=false`…); no hace falta duplicarlas en GitHub.
 
-## 2. Desactivar el despliegue automático de producción desde Git (Vercel)
+## 2. Despliegue automático desde Git (Vercel)
 
-Mientras la integración de Git de Vercel siga desplegando `main`, un commit roto llega a producción aunque la CI falle. Elige **una** opción:
+`vercel.json` contiene `git.deploymentEnabled.main=false`, que desactiva los despliegues automáticos disparados por commits de `main`. La Action sigue desplegando con `vercel deploy --prebuilt --prod` después de pasar el gate. Esta configuración se aplica cuando Vercel procese la nueva versión del proyecto.
 
-- **Ignored Build Step** (recomendada): Project → **Settings → Git → Ignored Build Step** → *Custom* con
-
-  ```sh
-  [ "$VERCEL_ENV" = "production" ]
-  ```
-
-  El comando sale con 0 en builds de producción disparados por Git (Vercel los omite) y con 1 en previews (se construyen). No afecta a `vercel deploy --prebuilt` de la CI, que no ejecuta un build en Vercel.
-- **Sin Git para `main`**: crear `vercel.json` con `{ "git": { "deploymentEnabled": { "main": false } } }`. Es un cambio del repositorio, no aplicado aquí.
+Confirma que el cambio aparece en el proyecto de Vercel y que no haya otro proyecto conectado al mismo repositorio con auto deploy de producción habilitado. También puede desactivarse desde Project → **Settings → Git**.
 
 ## 3. Proteger `main` con checks obligatorios (GitHub)
 
@@ -54,7 +47,7 @@ Repositorio → **Settings → Branches → Add branch protection rule** (o **Ru
 - *Require a pull request before merging*.
 - *Require status checks to pass before merging* → *Require branches to be up to date*, con los checks:
   - `Frontend CI Gate` (pasa solo si pasaron `Lint · Typecheck · Unit · Build`, `E2E (Playwright)`, `E2E (Cypress)` y `E2E (API publicado)`; basta con exigir este)
-- *Do not allow bypassing the above settings* (incluye administradores).
+- Restringe los pushes directos a `main` y activa *Do not allow bypassing the above settings* para que nadie pueda saltarse la regla.
 
 Los checks aparecen en el buscador después de una primera ejecución del workflow con estos nombres. No marques `deploy` ni `smoke` como obligatorios: en pull requests se omiten.
 

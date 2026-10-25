@@ -128,11 +128,11 @@ jobs:
             exit 1
           fi
 
-  # Producción solo se despliega desde la CI y tras pasar ambos gates. Requiere desactivar en Vercel el
-  # despliegue automático de producción desde Git (ver docs/DEPLOY.md); si no, Vercel desplegaría main por su cuenta.
+  # Producción solo se despliega desde la CI después de que Frontend CI Gate confirme todos los checks.
+  # vercel.json desactiva el despliegue automático de main desde Git para que no exista una ruta paralela.
   deploy:
     name: Deploy a Vercel (producción)
-    needs: [quality, e2e]
+    needs: [ci-gate]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     concurrency:
