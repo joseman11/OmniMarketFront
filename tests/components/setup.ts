@@ -5,6 +5,13 @@ import { afterAll, afterEach, beforeAll } from "vitest";
 // Radix Select checks pointer capture while moving between options. jsdom has no pointer-capture API,
 // so provide harmless stubs to let component tests exercise the real keyboard and click interactions.
 if (typeof HTMLElement !== "undefined") {
+  if (typeof HTMLElement.prototype.scrollIntoView !== "function") {
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: () => undefined,
+    });
+  }
+
   const pointerCaptureStubs: PropertyDescriptorMap = {
     hasPointerCapture: { configurable: true, value: () => false },
     setPointerCapture: { configurable: true, value: () => undefined },
