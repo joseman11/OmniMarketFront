@@ -142,7 +142,8 @@ jobs:
   deploy:
     name: Deploy a Vercel (producción)
     needs: [ci-gate]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # An optional skipped job upstream must not suppress deployment after the required gate passed.
+    if: ${{ !cancelled() && needs.ci-gate.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     concurrency:
       group: front-vercel-production
@@ -194,7 +195,7 @@ jobs:
   smoke:
     name: Smoke test (URL pública)
     needs: deploy
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: ${{ !cancelled() && needs.deploy.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     env:
       # Debe ser el dominio de producción estable; las URLs únicas pueden tener Deployment Protection.
