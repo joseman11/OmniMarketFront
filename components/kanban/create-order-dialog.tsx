@@ -8,13 +8,12 @@ import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { NEW_PRODUCT_HREF } from "@/components/dashboard/nav";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -108,7 +107,7 @@ export function CreateOrderDialog({
   const catalogEmpty = products.length === 0 && !productsLoading && !productsError;
 
   return (
-    <Dialog
+    <Sheet
       open={open}
       onOpenChange={(o) => {
         if (formState.isSubmitting) return;
@@ -116,7 +115,7 @@ export function CreateOrderDialog({
         if (!o) reset(DEFAULTS);
       }}
     >
-      <DialogContent onCloseAutoFocus={onCloseAutoFocus} className="max-h-[90svh] overflow-y-auto border-white/10 bg-[#0e0e15] sm:max-w-lg">
+      <SheetContent onCloseAutoFocus={onCloseAutoFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Nueva orden</DialogTitle>
           <DialogDescription>Los datos se validan con Zod antes de enviarse al servidor.</DialogDescription>
@@ -280,7 +279,7 @@ export function CreateOrderDialog({
           </DialogFooter>
         </form>
         )}
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

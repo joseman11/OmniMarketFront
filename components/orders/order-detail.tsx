@@ -8,7 +8,8 @@ import { toast } from "sonner";
 import { ArrowLeft, Plus, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { ErrorState, PageHeader, Panel } from "@/components/dashboard/panel";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, api } from "@/lib/api/client";
@@ -212,12 +213,12 @@ export function OrderDetail({ orderId }: { orderId: string }) {
         </div>
       </div>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent onCloseAutoFocus={deleteReturnFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
+      <Sheet open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <SheetContent onCloseAutoFocus={deleteReturnFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
           <DialogHeader><DialogTitle>Eliminar orden</DialogTitle><DialogDescription>Se eliminará {order.orderNumber} y sus líneas. Esta operación no se puede deshacer.</DialogDescription></DialogHeader>
           <DialogFooter><Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={deleting}>Cancelar</Button><Button variant="destructive" onClick={() => void removeOrder()} disabled={deleting}><Trash2 className="size-3.5" />{deleting ? "Eliminando…" : "Eliminar orden"}</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

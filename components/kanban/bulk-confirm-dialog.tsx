@@ -2,13 +2,12 @@
 
 import { ArrowRight } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import type { OrderStatus } from "@/lib/api/schemas";
 import { STATUS_META } from "@/lib/status";
@@ -33,8 +32,8 @@ export function BulkConfirmDialog({
 }) {
   const meta = target ? STATUS_META[target] : null;
   return (
-    <Dialog open={target !== null} onOpenChange={(o) => !pending && onOpenChange(o)}>
-      <DialogContent onCloseAutoFocus={onCloseAutoFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
+    <Sheet open={target !== null} onOpenChange={(o) => !pending && onOpenChange(o)}>
+      <SheetContent onCloseAutoFocus={onCloseAutoFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Confirmar actualización masiva</DialogTitle>
           <DialogDescription>
@@ -66,7 +65,7 @@ export function BulkConfirmDialog({
             {pending ? "Aplicando cambios…" : `Cambiar ${count} a ${meta?.label ?? ""}`}
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

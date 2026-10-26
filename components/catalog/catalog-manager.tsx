@@ -10,7 +10,8 @@ import { PageHeader, Panel, ErrorState } from "@/components/dashboard/panel";
 import { useDashboardAccess } from "@/components/dashboard/access-context";
 import { NEW_PRODUCT_PARAM } from "@/components/dashboard/nav";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -469,8 +470,8 @@ export function CatalogManager() {
         </Panel>
       </Tabs.Root>
 
-      <Dialog open={categoryOpen} onOpenChange={setCategoryDialogOpen}>
-        <DialogContent onCloseAutoFocus={categoryReturnFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
+      <Sheet open={categoryOpen} onOpenChange={setCategoryDialogOpen}>
+        <SheetContent onCloseAutoFocus={categoryReturnFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
           <DialogHeader><DialogTitle>{categoryId ? "Editar categoría" : "Nueva categoría"}</DialogTitle><DialogDescription>El slug se usa en reportes y se genera a partir del nombre.</DialogDescription></DialogHeader>
           <form onSubmit={saveCategory} className="grid gap-4">
             <TextField label="Nombre" value={categoryForm.name} onChange={(name) => setCategoryForm((form) => ({ ...form, name, slug: slugFrom(name) }))} placeholder="Ej. Hogar" errorId={categoryErrorField === "name" ? CATEGORY_ERROR_ID : undefined} />
@@ -478,11 +479,11 @@ export function CatalogManager() {
             {categoryError && <p id={CATEGORY_ERROR_ID} role="alert" className="text-sm text-danger">{categoryError}</p>}
             <DialogFooter><Button type="button" variant="ghost" onClick={() => setCategoryDialogOpen(false)} disabled={categoryPending}>Cancelar</Button><Button type="submit" disabled={categoryPending}>{categoryPending ? "Guardando…" : "Guardar categoría"}</Button></DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      <Dialog open={productOpen} onOpenChange={setProductDialogOpen}>
-        <DialogContent onCloseAutoFocus={productReturnFocus} className="max-h-[90svh] overflow-y-auto border-white/10 bg-[#0e0e15] sm:max-w-xl">
+      <Sheet open={productOpen} onOpenChange={setProductDialogOpen}>
+        <SheetContent onCloseAutoFocus={productReturnFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-xl">
           <DialogHeader><DialogTitle>{productId ? "Editar producto" : "Nuevo producto"}</DialogTitle><DialogDescription>Los pedidos guardan el precio y costo vigentes al momento de crearse.</DialogDescription></DialogHeader>
           <form onSubmit={saveProduct} className="grid gap-4">
             <fieldset disabled={productLoading} aria-busy={productLoading} className="grid min-w-0 gap-4 disabled:opacity-60 sm:grid-cols-2">
@@ -509,23 +510,23 @@ export function CatalogManager() {
             {productError && <p id={PRODUCT_ERROR_ID} role="alert" className="text-sm text-danger">{productError}</p>}
             <DialogFooter><Button type="button" variant="ghost" onClick={() => setProductDialogOpen(false)} disabled={productPending}>Cancelar</Button><Button type="submit" disabled={productPending || productLoading || categories.length === 0}>{productPending ? "Guardando…" : productLoading ? "Cargando…" : "Guardar producto"}</Button></DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      <Dialog open={detailProductId !== null} onOpenChange={(open) => !open && setDetailProductId(null)}>
-        <DialogContent onCloseAutoFocus={detailReturnFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
+      <Sheet open={detailProductId !== null} onOpenChange={(open) => !open && setDetailProductId(null)}>
+        <SheetContent onCloseAutoFocus={detailReturnFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
           <DialogHeader><DialogTitle>Detalle del producto</DialogTitle><DialogDescription>Consulta directa del registro en el backend.</DialogDescription></DialogHeader>
           {detail.error && !productDetail ? <ErrorState message={`No se pudo consultar el producto: ${messageFrom(detail.error)}`} onRetry={() => void detail.mutate()} /> : detail.isLoading || !productDetail ? <Skeleton className="h-32 w-full" /> : productDetail ? <div className="grid grid-cols-2 gap-3 text-sm"><div className="text-subtle">Nombre</div><div className="text-right text-white">{productDetail.name}</div><div className="text-subtle">SKU</div><div className="text-right font-mono text-white">{productDetail.sku}</div><div className="text-subtle">Categoría</div><div className="text-right text-white">{productDetail.category.name}</div><div className="text-subtle">Precio</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.price)}</div><div className="text-subtle">Costo</div><div className="text-right font-mono text-white">{formatCurrency(productDetail.cost)}</div><div className="text-subtle">Existencia</div><div className="text-right font-mono text-white">{productDetail.stock}</div></div> : null}
           <DialogFooter>{canManageCatalog && productDetail && <Button variant="outline" onClick={() => { setDetailProductId(null); void openProductForm(productDetail); }}><Pencil className="size-3.5" /> Editar</Button>}<Button variant="ghost" onClick={() => setDetailProductId(null)}>Cerrar</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && !deletePending && setDeleteTarget(null)}>
-        <DialogContent onCloseAutoFocus={deleteReturnFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
+      <Sheet open={!!deleteTarget} onOpenChange={(open) => !open && !deletePending && setDeleteTarget(null)}>
+        <SheetContent onCloseAutoFocus={deleteReturnFocus} className="border-white/10 bg-[#0e0e15] sm:max-w-md">
           <DialogHeader><DialogTitle>Confirmar eliminación</DialogTitle><DialogDescription>Se eliminará “{deleteTarget?.label}”. La operación puede rechazarse si el registro tiene relaciones activas.</DialogDescription></DialogHeader>
           <DialogFooter><Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={deletePending}>Cancelar</Button><Button variant="destructive" onClick={() => void confirmDelete()} disabled={deletePending}>{deletePending ? "Eliminando…" : "Eliminar"}</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
