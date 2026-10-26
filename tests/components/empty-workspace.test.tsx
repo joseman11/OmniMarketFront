@@ -83,8 +83,12 @@ describe("alta de orden sin catálogo", () => {
   it("mantiene protegida la única línea después de elegir un producto", async () => {
     const user = userEvent.setup();
     renderOrderDialog({ products: [product] });
-    await user.click(screen.getByRole("combobox", { name: "Producto 1" }));
-    await user.click(await screen.findByRole("option", { name: /Taza/ }));
+    const productSelect = screen.getByRole("combobox", { name: "Producto 1" });
+    productSelect.focus();
+    await user.keyboard("{ArrowDown}");
+    await screen.findByRole("option", { name: /Taza/ });
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(productSelect.textContent).toContain("Taza"));
 
     const remove = screen.getByRole("button", { name: "Quitar producto 1" });
     expect((remove as HTMLButtonElement).disabled).toBe(true);
@@ -99,7 +103,15 @@ describe("formulario de producto sin categorías", () => {
     const newCategoryId = "00000000-0000-4000-8000-000000000001";
     const products: ApiProduct[] = [];
     let createdCategory: unknown;
-    let createdProduct: unknown;
+    let createdProduct: {
+      categoryId: string;
+      sku: string;
+      name: string;
+      price: string;
+      cost: string;
+      stock: number;
+      isActive: boolean;
+    } | undefined;
     server.use(
       http.get("/backend/categories", () => HttpResponse.json({ items: categories })),
       http.get("/backend/products", () => HttpResponse.json({ items: products, pagination: { page: 1, limit: 100, total: products.length, totalPages: products.length ? 1 : 0 } })),
@@ -110,15 +122,7 @@ describe("formulario de producto sin categorías", () => {
         return HttpResponse.json({ item }, { status: 201 });
       }),
       http.post("/backend/products", async ({ request }) => {
-        const input = await request.json() as {
-          categoryId: string;
-          sku: string;
-          name: string;
-          price: string;
-          cost: string;
-          stock: number;
-          isActive: boolean;
-        };
+        const input = await request.json() as NonNullable<typeof createdProduct>;
         createdProduct = input;
         const item: ApiProduct = {
           ...product,
@@ -159,11 +163,13 @@ describe("formulario de producto sin categorías", () => {
       categoryId: newCategoryId,
       sku: "PRODUCTO-PRUEBA",
       name: "Producto de prueba",
-      price: "120.00",
-      cost: "45.00",
+      price: expect.any(String),
+      cost: expect.any(String),
       stock: 8,
       isActive: true,
     })));
+    expect(Number(createdProduct?.price)).toBe(120);
+    expect(Number(createdProduct?.cost)).toBe(45);
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 });

@@ -2,6 +2,21 @@ import { cleanup } from "@testing-library/react";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll } from "vitest";
 
+// Radix Select checks pointer capture while moving between options. jsdom has no pointer-capture API,
+// so provide harmless stubs to let component tests exercise the real keyboard and click interactions.
+if (typeof HTMLElement !== "undefined") {
+  const pointerCaptureStubs: PropertyDescriptorMap = {
+    hasPointerCapture: { configurable: true, value: () => false },
+    setPointerCapture: { configurable: true, value: () => undefined },
+    releasePointerCapture: { configurable: true, value: () => undefined },
+  };
+  for (const [name, descriptor] of Object.entries(pointerCaptureStubs)) {
+    if (typeof (HTMLElement.prototype as unknown as Record<string, unknown>)[name] !== "function") {
+      Object.defineProperty(HTMLElement.prototype, name, descriptor);
+    }
+  }
+}
+
 // Node ≥ 22 expone un localStorage experimental que, sin --localstorage-file, no implementa la
 // API y tapa al de jsdom. Se instala un Storage en memoria equivalente.
 function memoryStorage(): Storage {
