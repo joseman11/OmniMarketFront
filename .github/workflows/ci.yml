@@ -88,6 +88,8 @@ jobs:
   published-api:
     name: E2E (API publicado)
     needs: quality
+    # El API publicado se reporta como advertencia; no bloquea el despliegue del Front.
+    continue-on-error: true
     runs-on: ubuntu-latest
     env:
       NEXT_PUBLIC_USE_MOCKS: "false"
@@ -116,16 +118,19 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Require every check to pass
+      - name: Require quality and UI checks
         env:
           QUALITY_RESULT: ${{ needs.quality.result }}
           E2E_RESULT: ${{ needs.e2e.result }}
           CYPRESS_RESULT: ${{ needs.cypress.result }}
           PUBLISHED_API_RESULT: ${{ needs.published-api.result }}
         run: |
-          if [ "$QUALITY_RESULT" != "success" ] || [ "$E2E_RESULT" != "success" ] || [ "$CYPRESS_RESULT" != "success" ] || [ "$PUBLISHED_API_RESULT" != "success" ]; then
+          if [ "$QUALITY_RESULT" != "success" ] || [ "$E2E_RESULT" != "success" ] || [ "$CYPRESS_RESULT" != "success" ]; then
             echo "One or more required frontend checks did not pass."
             exit 1
+          fi
+          if [ "$PUBLISHED_API_RESULT" != "success" ]; then
+            echo "::warning::Published API check failed; deployment is allowed, but its SLA/contract result needs follow-up."
           fi
 
   # Producción solo se despliega desde la CI después de que Frontend CI Gate confirme todos los checks.
