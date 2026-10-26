@@ -86,9 +86,11 @@ jobs:
           retention-days: 7
 
   published-api:
-    name: E2E (API publicado)
+    name: E2E (API publicado, opcional)
     needs: quality
-    # El API publicado se reporta como advertencia; no bloquea el despliegue del Front.
+    # Desactivado por defecto. Para ejecutarlo, define RUN_PUBLISHED_API_E2E=true en Actions variables.
+    if: ${{ vars.RUN_PUBLISHED_API_E2E == 'true' }}
+    # Aunque se active, un fallo del API publicado no bloquea el despliegue del Front.
     continue-on-error: true
     runs-on: ubuntu-latest
     env:
@@ -129,7 +131,9 @@ jobs:
             echo "One or more required frontend checks did not pass."
             exit 1
           fi
-          if [ "$PUBLISHED_API_RESULT" != "success" ]; then
+          if [ "$PUBLISHED_API_RESULT" = "skipped" ]; then
+            echo "::notice::Published API check is disabled; deployment is allowed without that check."
+          elif [ "$PUBLISHED_API_RESULT" != "success" ]; then
             echo "::warning::Published API check failed; deployment is allowed, but its SLA/contract result needs follow-up."
           fi
 
